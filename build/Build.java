@@ -1,7 +1,6 @@
 import static build.Sources.project;
 import static build.Sources.scanSources;
 import static build.Vendored.module;
-import static build.Vendored.vendor;
 
 interface Ver {
 	String Immutables = "2.9.2";
@@ -30,7 +29,7 @@ interface Build {
 			.repackage()
 		);
 
-		vendor();
+		//Vendored.vendor();
 		scanSources("src");
 		project();
 

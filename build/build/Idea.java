@@ -2,6 +2,7 @@ package build;
 
 import java.io.IOException;
 import java.nio.file.*;
+import java.util.stream.Stream;
 import static java.util.stream.Collectors.joining;
 
 interface Idea {
@@ -248,7 +249,7 @@ interface Idea {
 						</profile>
 			[annotationProfiles]
 					</annotationProcessing>
-					<bytecodeTargetLevel target="18" />
+					<bytecodeTargetLevel target="17" />
 				</component>
 				<!--
 				<component name="JavacSettings">
@@ -287,18 +288,22 @@ interface Idea {
 							</profile>
 				"""
 				.replace("[ijname]", ijname(m))
-				.replace("[processors]", processors.stream()
-					.map(p -> "<entry name=\"$PROJECT_DIR$/" + processorPath(p) + "\"/>")
+				.replace("[processors]", processors.stream().flatMap(p -> {
+						var b = Stream.<ProvidingModule>builder()
+							.add(Dependencies.get(p.name()));
+						for (var d : Dependencies.dependenciesOf(p.name())) {
+							if (!d.isStatic()) b.add(d.module());
+						}
+						return b.build();
+					})
+					.distinct()
+					.map(p -> "<entry name=\"$PROJECT_DIR$/" + compiledModulePath(p) + "\"/>")
 					.collect(joining("\n					"))));
 		}
 
 		return s
 			.replace("[annotationProfiles]", annotationProfiles)
 			.replace("[javacOptions]", ""/* moduleOptions */);
-	}
-
-	private static Path processorPath(ModuleInfo.Processor processor) {
-		return compiledModulePath(Dependencies.get(processor.name()));
 	}
 
 	private static CharSequence javacOptions(SourceModule m) {

@@ -99,9 +99,9 @@ public interface Jms {
 
 		return new ModuleInfo(module, open, List.copyOf(requires), List.copyOf(processors));
 	}
-
+/*
 	static void main(String[] args) throws IOException, MalformedModuleException {
 		var file = "/Users/Shared/Git/immutaverse/src/common/_test/module-info.java";
 		System.out.println(Jms.parseModuleInfo(Path.of(file)));
-	}
+	}*/
 }

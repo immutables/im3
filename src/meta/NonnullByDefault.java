@@ -7,11 +7,11 @@ import javax.annotation.meta.When;
 
 @Nonnull(when = When.ALWAYS)
 @TypeQualifierDefault({
-		ElementType.PARAMETER,
-		ElementType.FIELD,
-		ElementType.METHOD,
-		ElementType.RECORD_COMPONENT,
-		ElementType.LOCAL_VARIABLE,
-		ElementType.TYPE_PARAMETER,
+	ElementType.PARAMETER,
+	ElementType.FIELD,
+	ElementType.METHOD,
+	ElementType.RECORD_COMPONENT,
+	ElementType.LOCAL_VARIABLE,
+	ElementType.TYPE_PARAMETER,
 })
 public @interface NonnullByDefault {}
