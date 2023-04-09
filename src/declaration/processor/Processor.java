@@ -1,21 +1,18 @@
 package io.immutables.declaration.processor;
 
-import java.io.IOException;
 import java.util.Set;
 import javax.annotation.processing.*;
 import javax.lang.model.SourceVersion;
 import javax.lang.model.element.TypeElement;
-import javax.tools.Diagnostic;
-import static javax.tools.Diagnostic.Kind.ERROR;
 
 // Since we require records, it should be safe to require LTS release 17
 @SupportedSourceVersion(SourceVersion.RELEASE_17)
-@SupportedAnnotationTypes(Processor.ANNOTATION_API_INVENTORY)
+@SupportedAnnotationTypes(Processor.ANNOTATION_SERVICE_INVENTORY)
 @SupportedOptions({
 	Processor.OPTION_X
 })
 public class Processor extends AbstractProcessor {
-	static final String ANNOTATION_API_INVENTORY = "io.immutables.declaration.ApiInventory";
+	static final String ANNOTATION_SERVICE_INVENTORY = "io.immutables.declaration.ServiceInventory";
 	static final String OPTION_X = "io.immutables.declaration.x";
 
 	@Override
@@ -24,7 +21,7 @@ public class Processor extends AbstractProcessor {
 			// processingEnv.getMessager().printMessage(NOTE,"HERE HERE HERE A B C !");
 		} else {
 			var elements = processingEnv.getElementUtils();
-			var annotationElement = elements.getTypeElement(ANNOTATION_API_INVENTORY);
+			var annotationElement = elements.getTypeElement(ANNOTATION_SERVICE_INVENTORY);
 			var inventoryPackages = round.getElementsAnnotatedWith(annotationElement);
 
 			for (var p : inventoryPackages) {
@@ -36,7 +33,7 @@ public class Processor extends AbstractProcessor {
 		// annotation which we put on a package level.
 		return true;
 	}
-
+/*
 	private void writeFile() throws IOException {
 		var kapow = processingEnv.getFiler().createSourceFile("ar.kan.sas.Kapow");
 		try (var w = kapow.openWriter()) {
@@ -46,5 +43,5 @@ public class Processor extends AbstractProcessor {
 				public enum Kapow { ThisIsIt }
 				""");
 		}
-	}
+	}*/
 }

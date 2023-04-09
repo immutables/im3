@@ -7,4 +7,4 @@ import java.lang.annotation.Target;
  * Marks package that contains API types and/or service interfaces.
  */
 @Target(ElementType.PACKAGE)
-public @interface ApiInventory {}
+public @interface ServiceInventory {}

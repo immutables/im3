@@ -32,10 +32,12 @@ public final class Vect<E> implements Iterable<E>, Foldable<E> {
 		this.elements = elements;
 	}
 
-	Vect(byte checkNullDispatch, Object[] elements) {
-		for (int i = 0; i < elements.length; i++) {
-			if (elements[i] == null) {
-				throw new NullPointerException("Vect element[" + i + "] is null");
+	Vect(boolean checkNonnullElements, Object[] elements) {
+		if (checkNonnullElements) {
+			for (int i = 0; i < elements.length; i++) {
+				if (elements[i] == null) {
+					throw new NullPointerException("Vect element[" + i + "] is null");
+				}
 			}
 		}
 		this.elements = elements;
@@ -82,7 +84,7 @@ public final class Vect<E> implements Iterable<E>, Foldable<E> {
 		return Optional.empty();
 	}
 
-	public boolean any(Predicate<? super E> is) {
+	public boolean some(Predicate<? super E> is) {
 		for (Object e : elements) {
 			if (is.test((E) e)) return true;
 		}
@@ -118,7 +120,7 @@ public final class Vect<E> implements Iterable<E>, Foldable<E> {
 	}
 
 	public Vect<E> takeWhile(Predicate<? super E> predicate) {
-		int taken = 0;
+		int taken;
 		for (taken = 0; taken < elements.length; taken++) {
 			if (!predicate.test((E) elements[taken])) break;
 		}
@@ -128,7 +130,7 @@ public final class Vect<E> implements Iterable<E>, Foldable<E> {
 	}
 
 	public Vect<E> dropWhile(Predicate<? super E> predicate) {
-		int dropped = 0;
+		int dropped;
 		for (dropped = 0; dropped < elements.length; dropped++) {
 			if (!predicate.test((E) elements[dropped])) break;
 		}
@@ -324,23 +326,23 @@ public final class Vect<E> implements Iterable<E>, Foldable<E> {
 	}
 
 	public static <E> Vect<E> of(E single) {
-		return new Vect<>((byte)0, new Object[]{single});
+		return new Vect<>(true, new Object[]{single});
 	}
 
 	public static <E> Vect<E> of(E first, E second) {
-		return new Vect<>((byte)0, new Object[]{first, second});
+		return new Vect<>(true, new Object[]{first, second});
 	}
 
 	public static <E> Vect<E> of(E first, E second, E third) {
-		return new Vect<>((byte)0, new Object[]{first, second, third});
+		return new Vect<>(true, new Object[]{first, second, third});
 	}
 
 	public static <E> Vect<E> of(E first, E second, E third, E fourth) {
-		return new Vect<>((byte)0, new Object[]{first, second, third, fourth});
+		return new Vect<>(true, new Object[]{first, second, third, fourth});
 	}
 
 	public static <E> Vect<E> of(E first, E second, E third, E fourth, E fifth) {
-		return new Vect<>((byte)0, new Object[]{first, second, third, fourth, fifth});
+		return new Vect<>(true, new Object[]{first, second, third, fourth, fifth});
 	}
 
 	@SafeVarargs
@@ -350,7 +352,7 @@ public final class Vect<E> implements Iterable<E>, Foldable<E> {
 		}
 		E[] array = elements.clone();
 		if (array.length == 0) return of();
-		return new Vect<>((byte) 0, array);
+		return new Vect<>(true, array);
 	}
 
 	public static <E> Vect<E> of() {
@@ -369,7 +371,7 @@ public final class Vect<E> implements Iterable<E>, Foldable<E> {
 		if (iterable instanceof Collection<?>) {
 			Object[] array = ((Collection<?>) iterable).toArray();
 			if (array.length == 0) return of();
-			return new Vect<>((byte) 0, array);
+			return new Vect<>(true, array);
 		}
 		return Vect.<E>builder().addAll(iterable).build();
 	}
@@ -526,7 +528,8 @@ public final class Vect<E> implements Iterable<E>, Foldable<E> {
 
 		@Override
 		public R get() {
-			if (result == null) throw new IllegalStateException("Non exhaustive match, use 'otherwise' case");
+			if (result == null) throw new IllegalStateException(
+				"Non exhaustive match, use 'otherwise' case");
 			return result;
 		}
 	}

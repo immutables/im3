@@ -47,7 +47,7 @@ public interface Source {
 		@Override
 		public boolean equals(@Null Object another) {
 			if (!(another instanceof Position)) return false;
-			Position obj = (Position) another;
+			var obj = (Position) another;
 			return position == obj.position
 					&& line == obj.line
 					&& column == obj.column;
@@ -97,10 +97,9 @@ public interface Source {
 
 		@Override
 		public boolean equals(Object obj) {
-			if (!(obj instanceof Range)) return false;
-			Range r = (Range) obj;
-			return begin.equals(r.begin)
-					&& end.equals(r.end);
+			return obj instanceof Range r
+				&& begin.equals(r.begin)
+				&& end.equals(r.end);
 		}
 
 		@Override
@@ -229,22 +228,22 @@ public interface Source {
 			sb.append('\n');
 		}
 
-		private StringBuilder gutter(StringBuilder sb, String gutter) {
+		private void gutter(StringBuilder sb, String gutter) {
 			for (int i = gutter.length(); i < gutterWidth; i++) {
 				sb.append(' ');
 			}
-			return sb.append(gutter).append(GUTTER_SEPARATOR);
+			sb.append(gutter).append(GUTTER_SEPARATOR);
 		}
 
-		private StringBuilder gutterFill(StringBuilder sb, char c) {
-			return appendRepeat(sb, c, gutterWidth).append(GUTTER_SEPARATOR);
+		private void gutterFill(StringBuilder sb, char c) {
+			appendRepeat(sb, c, gutterWidth);
+			sb.append(GUTTER_SEPARATOR);
 		}
 
-		private StringBuilder appendRepeat(StringBuilder sb, char c, int times) {
+		private void appendRepeat(StringBuilder sb, char c, int times) {
 			for (int i = 0; i < times; i++) {
 				sb.append(c);
 			}
-			return sb;
 		}
 
 		@Override
@@ -258,7 +257,7 @@ public interface Source {
 
 		private static final String ELLIPSIS = "\u2026";
 		private static final String GUTTER_SEPARATOR = " |";
-		private static final int TAB_WIDTH = Integer.getInteger("im.source.tab-width", 2);
+		private static final int TAB_WIDTH = Integer.getInteger("io.immutables.source.tab-width", 2);
 	}
 
 	final class Problem {
@@ -269,7 +268,13 @@ public interface Source {
 		public final String hint;
 		public final Lines lines;
 
-		public Problem(String filename, CharSequence source, Lines lines, Range range, String message, String hint) {
+		public Problem(
+			String filename,
+			CharSequence source,
+			Lines lines,
+			Range range,
+			String message,
+			String hint) {
 			this.filename = filename;
 			this.source = source;
 			this.lines = lines;
@@ -329,16 +334,19 @@ public interface Source {
 		}
 
 		public static Lines from(CharSequence input) {
-			Tracker t = new Tracker();
+			var tracker = new Tracker();
 			int length = input.length();
 			for (int i = 0; i < length; i++) {
 				if (input.charAt(i) == '\n') {
-					t.addNewlineAt(i);
+					tracker.addNewlineAt(i);
 				}
 			}
-			return t.lines(length);
+			return tracker.lines(length);
 		}
 
+		/** Line Tracker keeps tracks of the newlines observed at certain
+		 * positions, acting as a builder for the Lines object.
+		 */
 		public static final class Tracker {
 			private int[] lines = new int[128];
 			{
@@ -502,7 +510,7 @@ public interface Source {
 		}
 
 		/** Provides unsafe access to the raw underlying array. */
-		public char[] array() {
+		public char[] getUnsafeArray() {
 			return data;
 		}
 

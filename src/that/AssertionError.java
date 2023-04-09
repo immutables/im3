@@ -140,8 +140,9 @@ final class AssertionError extends java.lang.AssertionError {
 	private static final String TEST_SUFFIX_OR_PREFIX = "Test";
 
 	/**
-	 * Some test reporting systems output both message and toString if this replacement is enabled, we're outputting it
-	 * when getMessage is called. But toString will still output our message
+	 * Some test reporting systems output both message and toString if this replacement
+	 * is enabled, we're outputting it when getMessage is called.
+	 * But toString will still output our message.
 	 */
 	private static final String replaceErrorMessage =
 		System.getProperty("io.immutables.that.replace-error-message", "");

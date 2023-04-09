@@ -1,0 +1,16 @@
+
+// Need to constraint type parameters to be exactly the same
+// or just prohibit those
+sealed interface X<U> {
+	record A<T, Z>() implements X<T> {}
+	record B<T, U>() implements X<T> {}
+	record C<T>() implements X<T> {}
+	public static void main(String[] args) {
+		X<String> x = new X.B<String, String>();
+		var s = switch (x) {
+			case X.C<String> c -> c.toString();
+			default -> "";
+		};
+		System.out.println(s);
+	}
+}

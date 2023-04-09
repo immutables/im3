@@ -14,7 +14,7 @@ sealed interface Type {
 
 	/** This is made to have an object identity, no equals / hashCode - on purpose. */
 	final class Variable implements Type {
-		private final String name;
+		final String name;
 
 		Variable(String name) {
 			this.name = name;

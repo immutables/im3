@@ -4,8 +4,8 @@ import io.immutables.meta.Null;
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.Element;
+import javax.lang.model.element.Modifier;
 import javax.lang.model.element.TypeElement;
-import javax.lang.model.util.ElementFilter;
 import javax.tools.Diagnostic;
 
 class InventoryDiscoverer {
@@ -21,40 +21,52 @@ class InventoryDiscoverer {
 		for (var element : inventoryPackage.getEnclosedElements()) {
 			if (excluded(element)) continue;
 
-			switch (element.getKind()) {
-			case ENUM:
-				datatypeEnum(element);
-				break;
-			case RECORD:
-				datatypeRecord(element);
-				break;
-			case INTERFACE:
-				// can also be mixin interface
-				if (findAnnotation(element, ANNOTATION_HTTP_PATH) != null) {
-					contractInterface(element);
+			var kind = element.getKind();
+			switch (kind) {
+			case ENUM -> datatypeEnum((TypeElement) element);
+			case RECORD -> datatypeRecord((TypeElement) element);
+			case INTERFACE -> {
+				var type = (TypeElement) element;
+				if (isContractKind(type)) {
+					contractInterface(type);
+				} else if (type.getModifiers().contains(Modifier.SEALED)) {
+					datatypeSealedInterface(type);
+				} else {
+					// can also be mixin interface, we don't consider it as a problem,
+					// and we don't process it either
 				}
-				break;
-			default:
-				processing.getMessager().printMessage(Diagnostic.Kind.ERROR,
-					"Not supported element of kind: ", element);
+			}
+			default -> processing.getMessager().printMessage(Diagnostic.Kind.ERROR,
+				"Not supported element of kind: " + kind, element);
 			}
 		}
 	}
 
-	private void contractInterface(Element element) {
-		processing.getMessager().printMessage(Diagnostic.Kind.MANDATORY_WARNING,
-			"Found contract " + element.getSimpleName(), element);
+	private static boolean isContractKind(TypeElement type) {
+		return findAnnotation(type, ANNOTATION_HTTP_PATH) != null;
 	}
 
-	private void datatypeRecord(Element element) {
+	private void contractInterface(TypeElement type) {
+		processing.getMessager().printMessage(Diagnostic.Kind.MANDATORY_WARNING,
+			"Found contract " + type.getSimpleName(), type);
+	}
+
+	private void datatypeRecord(TypeElement type) {
 		//ElementFilter.recordComponentsIn(element.getEnclosedElements())
+
 		processing.getMessager().printMessage(Diagnostic.Kind.MANDATORY_WARNING,
-			"Found record " + element.getSimpleName(), element);
+			"Found record " + type.getSimpleName(), type);
 	}
 
-	private void datatypeEnum(Element element) {
+	private void datatypeSealedInterface(TypeElement type) {
+
 		processing.getMessager().printMessage(Diagnostic.Kind.MANDATORY_WARNING,
-			"Found enum " + element.getSimpleName(), element);
+			"Found sealed " + type.getSimpleName(), type);
+	}
+
+	private void datatypeEnum(TypeElement type) {
+		processing.getMessager().printMessage(Diagnostic.Kind.MANDATORY_WARNING,
+			"Found enum " + type.getSimpleName(), type);
 	}
 
 	private boolean excluded(Element element) {
@@ -62,10 +74,10 @@ class InventoryDiscoverer {
 	}
 
 	private static @Null AnnotationMirror findAnnotation(Element element, String annotationType) {
-		for (var a : element.getAnnotationMirrors()) {
-			var type = (TypeElement) a.getAnnotationType().asElement();
-			if (type.getQualifiedName().contentEquals(annotationType)) {
-				return a;
+		for (var annotation : element.getAnnotationMirrors()) {
+			var typeElement = (TypeElement) annotation.getAnnotationType().asElement();
+			if (typeElement.getQualifiedName().contentEquals(annotationType)) {
+				return annotation;
 			}
 		}
 		return null;
