@@ -14,17 +14,21 @@ public abstract class Out extends StreamBase {
 
 	public abstract void putBoolean(boolean b) throws IOException;
 
-	public abstract void putString(CharSequence s) throws IOException;
+	public abstract void putString(String s) throws IOException;
 
 	public abstract void putChars(char[] chars, int offset, int length) throws IOException;
+
+	public abstract void putString(NameIndex names, int index) throws IOException;
 
 	public abstract void beginArray() throws IOException;
 
 	public abstract void endArray() throws IOException;
 
-	public abstract void beginStruct() throws IOException;//FieldIndex f
+	public abstract void beginStruct(NameIndex names) throws IOException;
 
-	public abstract void putField(int fieldIndex) throws IOException;
+	public abstract void putField(int index) throws IOException;
+
+	public abstract void putField(String name) throws IOException;
 
 	public abstract void endStruct() throws IOException;
 }

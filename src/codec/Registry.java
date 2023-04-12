@@ -8,6 +8,7 @@ import java.lang.reflect.Type;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import static io.immutables.codec.Types.isRewrapped;
 import static io.immutables.codec.Types.requireSpecificTypes;
 import static java.util.Objects.requireNonNull;
 
@@ -18,7 +19,8 @@ import static java.util.Objects.requireNonNull;
  */
 public class Registry implements Codec.Resolver {
 
-	private final Map<Class<?>, FactoriesByType> factories;
+	private final Map<Class<?>, List<Entry>> factoriesByType;
+	private final List<Entry> factoriesCatchAll;
 	private final ConcurrentMap<MemoKey, Codec<?, ?, ?>> memoisedCodecs = new ConcurrentHashMap<>();
 
 	private record MemoKey(Type type, Medium<?, ?> medium) {}
@@ -30,17 +32,42 @@ public class Registry implements Codec.Resolver {
 	) {}
 
 	private Registry(List<Entry> entries) {
-		this.factories = Map.copyOf(distributeByRawTypes(entries));
+		var catchAll = new ArrayList<Entry>();
+		var byType = new HashMap<Class<?>, List<Entry>>();
+		for (var e : entries) {
+			if (e.rawTypes.length == 0) {
+				// matching will be done in reverse,
+				catchAll.add(0, e);
+			} else for (var r : e.rawTypes) {
+				byType.computeIfAbsent(r, k -> new ArrayList<>()).add(0, e);
+			}
+		}
+		this.factoriesByType = byType;
+		this.factoriesCatchAll = catchAll;
+	}
+
+	public <T, I extends In, O extends Out>
+	Optional<Codec<T, I, O>> resolve(Class<? extends T> type, Medium<I, O> medium) {
+		return resolve((Type) type, medium);
 	}
 
 	public <T, I extends In, O extends Out>
 	Optional<Codec<T, I, O>> resolve(Type type, Medium<I, O> medium) {
 		requireNonNull(medium);
-		requireSpecificTypes(type);
+		if (medium == Medium.Any) throw new IllegalArgumentException(
+			"%s is only for registering/matchting codec factories, not for resolving codecs"
+				.formatted(Medium.Any));
+		// it is very important that we not only validated type for specific
+		// but also rewrapped all JVM provided reflected ParameterizedTypes to
+		// our own implementation. JVM ones are never equal to custom implementations,
+		// so we cannot mix them in maps/sets etc.
+		type = requireSpecificTypes(type);
+
 		// Lookup callback used from within codec factories/codecs to lookup
 		// codecs they delegate to for their fields etc.
 		Codec.Lookup<I, O> lookup = new Codec.Lookup<>() {
 			public <W> Codec<W, I, O> get(Type t) {
+				assert isRewrapped(t); // assert here because this could be a call not from here
 				@Null Codec<W, I, O> codec = resolve(t, medium, this);
 				if (codec != null) return codec;
 				throw new NoSuchElementException("No such codec for type " + t);
@@ -69,7 +96,6 @@ public class Registry implements Codec.Resolver {
 	// but requires Codec/Factory implementors to not trick either
 	private <T, I extends In, O extends Out> @Null Codec<T, I, O> resolve(
 		Type type, Medium<I, O> medium, Codec.Lookup<I, O> lookup) {
-
 		var memoKey = new MemoKey(type, medium);
 
 		// short circuit on memoised codec early on
@@ -105,33 +131,65 @@ public class Registry implements Codec.Resolver {
 			forType = new Nesting.ForType();
 			nesting.byType.put(type, forType);
 
-			@Null Codec<T, I, O> codec = null;
-			try {
-				@Null var byType = factories.get(toRawType(type));
-				if (byType != null) {
-					@Null var factory = (Codec.Factory<I, O>) byType.lookup(medium);
-					if (factory != null) {
-						codec = (Codec<T, I, O>) factory.tryCreate(type, medium);
-						if (codec != null) {
-							memoisedCodecs.put(memoKey, codec);
-							return codec;
+			Class<?> raw = toRawType(type);
+
+			class FactoryMatcher {
+				@Null Codec<T, I, O> codec;
+
+				void tryCreateWith(List<Entry> entries, Medium<?, ?> medium) {
+					for (var e : entries) {
+						if (e.medium == medium) {
+							// this wrestling with generics is not sound,
+							// but it works because we match by specific medium or
+							// by any, factories working with Any medium are able to handle
+							// medium with I, O subclasses
+							var factory = (Codec.Factory<I, O>) e.factory;
+							codec = (Codec<T, I, O>) factory.tryCreate(
+								type, raw, (Medium<I, O>) medium, lookup);
+
+							if (codec != null) break;
 						}
 					}
 				}
-				return null;
+			}
 
+			var matcher = new FactoryMatcher();
+
+			try {
+				@Null var factoryByType = factoriesByType.get(raw);
+				if (factoryByType != null) {
+					matcher.tryCreateWith(factoryByType, medium);
+					if (matcher.codec == null) {
+						matcher.tryCreateWith(factoryByType, Medium.Any);
+					}
+
+					if (matcher.codec != null) {
+						memoisedCodecs.put(memoKey, matcher.codec);
+						return matcher.codec;
+					}
+				} else {
+					matcher.tryCreateWith(factoriesCatchAll, medium);
+					if (matcher.codec == null) {
+						matcher.tryCreateWith(factoriesCatchAll, Medium.Any);
+					}
+
+					if (matcher.codec != null) {
+						memoisedCodecs.put(memoKey, matcher.codec);
+						return matcher.codec;
+					}
+				}
+				return null;
 			} finally {
 				// here we actualize deferred instances to avoid lazy lookups from deferred
-				if (codec != null) {
+				if (matcher.codec != null) {
 					for (var d : forType.deferred) {
 						// this would not throw as just assigning references
-						((Deferred<T, I, O>) d).setActual(codec);
+						((Deferred<T, I, O>) d).setActual(matcher.codec);
 					}
 				}
 				// and removing entry, since we've added it
 				nesting.byType.remove(type);
 			}
-
 		} finally {
 			if (nestingOnEntry == null) {
 				// we created nesting on entry, so we'll clean it up after
@@ -190,6 +248,10 @@ public class Registry implements Codec.Resolver {
 		private final List<Entry> entries = new ArrayList<>();
 		private boolean useBuiltin = true;
 
+		public Builder add(Codec.Factory<In, Out> factory) {
+			return add(factory, Medium.Any);
+		}
+
 		public <I extends In, O extends Out> Builder add(
 			Codec.Factory<I, O> factory, Medium<I, O> medium, Class<?>... rawTypes) {
 			entries.add(new Entry(factory, medium, rawTypes));
@@ -203,74 +265,18 @@ public class Registry implements Codec.Resolver {
 
 		public Registry build() {
 			if (useBuiltin) {
-				//entries.add(0, new Entry());
+				entries.addAll(0, builtin());
 			}
 			return new Registry(entries);
 		}
 	}
 
-	private static Map<Class<?>, FactoriesByType> distributeByRawTypes(List<Entry> entries) {
-		var factories = new HashMap<Class<?>, FactoriesByType>();
-		for (var e : entries) {
-			for (var r : e.rawTypes) {
-				factories.computeIfAbsent(r, k -> new FactoriesByType())
-					.add(e);
-			}
-		}
-		return factories;
-	}
-
-	// Models a "smart entry" for factories,
-	// differentiates and overrides by medium and looks up accordingly
-	private static final class FactoriesByType {
-		private @Null Entry anyMedium;
-		// this is by design a list, not a map, number of different Medium
-		// will be small in any reasonable system
-		private @Null List<Entry> forMediums;
-		// so far we track overridden entries only for troubleshooting,
-		// but might allow access to it later
-		private @Null List<Entry> overridden;
-
-		void add(Entry e) {
-			if (e.medium == Medium.Any) {
-				if (anyMedium != null) addOverridden(anyMedium);
-				anyMedium = e;
-			} else {
-				forMedium(e);
-			}
-		}
-
-		@Null Codec.Factory<?, ?> lookup(Medium<?, ?> medium) {
-			// trying first a specific medium
-			if (forMediums != null) for (var m : forMediums) {
-				if (m.medium == medium) {
-					return m.factory;
-				}
-			}
-			// resort to any media, which is not guaranteed either
-			return anyMedium != null ? anyMedium.factory : null;
-		}
-
-		private void forMedium(Entry e) {
-			if (forMediums == null) forMediums = new ArrayList<>();
-			displaceOverridden(e.medium);
-			forMediums.add(e);
-		}
-
-		private void addOverridden(Entry e) {
-			if (overridden == null) overridden = new ArrayList<>();
-			overridden.add(e);
-		}
-
-		private void displaceOverridden(Medium<?, ?> medium) {
-			assert forMediums != null;
-			for (Iterator<Entry> it = forMediums.iterator(); it.hasNext(); ) {
-				var m = it.next();
-				if (m.medium == medium) {
-					addOverridden(m);
-					it.remove();
-				}
-			}
-		}
+	private static List<Entry> builtin() {
+		ScalarCodecs scalars = new ScalarCodecs();
+		return List.of(
+			new Entry(scalars, Medium.Any, scalars.classes()),
+			new Entry(new OptionalCodecs(), Medium.Any, new Class<?>[]{Optional.class}),
+			new Entry(new CollectionCodecs(), Medium.Any, new Class<?>[0])
+		);
 	}
 }

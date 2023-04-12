@@ -1,6 +1,8 @@
 module io.immutables.codec {
 	requires static io.immutables.meta;
 	requires com.fasterxml.jackson.core;
+	requires com.fasterxml.jackson.databind;
+	requires com.fasterxml.jackson.annotation;
 	requires com.google.common;
 	requires io.immutables.common;
 	exports io.immutables.codec;

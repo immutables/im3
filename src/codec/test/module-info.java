@@ -5,4 +5,5 @@ open module io.immutables.codec.test {
 	requires io.immutables.common;
 	requires com.google.common;
 	requires com.fasterxml.jackson.core;
+	requires io.immutables.that;
 }

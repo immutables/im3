@@ -21,7 +21,6 @@ import java.util.Optional;
  * @param <O> Subclass of {@link Out} (or just {@code Out}) used for this medium
  */
 public abstract class Codec<T, I extends In, O extends Out> {
-
 	/**
 	 * Encodes an instance to the output medium.
 	 */
@@ -32,6 +31,14 @@ public abstract class Codec<T, I extends In, O extends Out> {
 	 */
 	public abstract @Null T decode(I in) throws IOException;
 
+	/**
+	 * Can provide a default value for a type when value is absent from the input,
+	 * but needed to construct an instance for a component(field) represented by
+	 * this codec.
+	 * @return default implementation returns {@code null}, override to change this
+	 */
+	public @Null T defaultInstance() {return null;}
+
 	public interface Resolver {
 		<T, I extends In, O extends Out>
 		Optional<Codec<T, I, O>> resolve(Type type, Medium<I, O> medium);
@@ -41,7 +48,11 @@ public abstract class Codec<T, I extends In, O extends Out> {
 	 * Factory able to instantiate codecs for specific type and medium.
 	 */
 	public interface Factory<I extends In, O extends Out> {
-		@Null Codec<?, I, O> tryCreate(Type type, Medium<I, O> medium);
+		@Null Codec<?, I, O> tryCreate(
+			Type type,
+			Class<?> raw,
+			Medium<? extends I, ? extends O> medium,
+			Codec.Lookup<I, O> lookup);
 	}
 
 	/**

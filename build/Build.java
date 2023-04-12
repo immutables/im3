@@ -37,6 +37,9 @@ interface Build {
 		module("com.fasterxml.jackson.databind", a -> a
 			.classes("com.fasterxml.jackson.core:jackson-databind", Ver.Jackson)
 		);
+		module("com.fasterxml.jackson.annotation", a -> a
+			.classes("com.fasterxml.jackson.core:jackson-annotations", Ver.Jackson)
+		);
 		module("com.google.common", a -> a
 			.classes("com.google.guava:guava", Ver.Guava)
 		);
