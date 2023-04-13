@@ -535,10 +535,11 @@ public interface That<T, S extends That<T, S>> {
 			if (!missingElements.isEmpty() || !remainingElements.isEmpty()) {
 				java.lang.String actual = "";
 				if (!missingElements.isEmpty()) {
-					actual += "missing " + What.showElements(missingElements) + "; ";
+					actual += "missing " + What.showElements(missingElements);
 				}
 				if (!remainingElements.isEmpty()) {
-					actual += "extra  " + What.showElements(remainingElements);
+					if (!actual.isEmpty()) actual += "; ";
+					actual += "extra " + What.showElements(remainingElements);
 				}
 				throw What.newAssertionError(
 						"expected only: " + What.showElements(expectedElements),

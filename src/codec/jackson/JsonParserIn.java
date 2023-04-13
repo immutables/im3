@@ -94,7 +94,7 @@ public final class JsonParserIn extends In {
 		return s;
 	}
 
-	public int takeName(NameIndex names) throws IOException {
+	public int takeString(NameIndex names) throws IOException {
 		ensurePeeked();
 		if (peeked != ID_STRING) throw unexpected(
 			"Name is supposed to be a string, but was %s", parser.getCurrentToken());

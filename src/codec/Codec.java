@@ -31,14 +31,6 @@ public abstract class Codec<T, I extends In, O extends Out> {
 	 */
 	public abstract @Null T decode(I in) throws IOException;
 
-	/**
-	 * Can provide a default value for a type when value is absent from the input,
-	 * but needed to construct an instance for a component(field) represented by
-	 * this codec.
-	 * @return default implementation returns {@code null}, override to change this
-	 */
-	public @Null T defaultInstance() {return null;}
-
 	public interface Resolver {
 		<T, I extends In, O extends Out>
 		Optional<Codec<T, I, O>> resolve(Type type, Medium<I, O> medium);

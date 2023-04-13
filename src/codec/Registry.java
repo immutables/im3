@@ -1,15 +1,13 @@
 package io.immutables.codec;
 
-import io.immutables.common.Unreachable;
 import io.immutables.meta.Null;
 import java.io.IOException;
-import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import static io.immutables.codec.Types.isRewrapped;
-import static io.immutables.codec.Types.requireSpecificTypes;
+import static io.immutables.codec.Types.requireSpecific;
 import static java.util.Objects.requireNonNull;
 
 /**
@@ -61,13 +59,13 @@ public class Registry implements Codec.Resolver {
 		// but also rewrapped all JVM provided reflected ParameterizedTypes to
 		// our own implementation. JVM ones are never equal to custom implementations,
 		// so we cannot mix them in maps/sets etc.
-		type = requireSpecificTypes(type);
+		type = requireSpecific(type);
 
 		// Lookup callback used from within codec factories/codecs to lookup
 		// codecs they delegate to for their fields etc.
 		Codec.Lookup<I, O> lookup = new Codec.Lookup<>() {
 			public <W> Codec<W, I, O> get(Type t) {
-				assert isRewrapped(t); // assert here because this could be a call not from here
+				assert isRewrapped(t); // assert because these calls can be made by "indecent" codecs
 				@Null Codec<W, I, O> codec = resolve(t, medium, this);
 				if (codec != null) return codec;
 				throw new NoSuchElementException("No such codec for type " + t);
@@ -122,7 +120,7 @@ public class Registry implements Codec.Resolver {
 				// instance lazily
 				var deferred = new Deferred<T, I, O>(type, lookup);
 				forType.deferred.add(deferred);
-				// and we don't memoise it!
+				// and we do not memoise it!
 				return deferred;
 			}
 
@@ -131,7 +129,7 @@ public class Registry implements Codec.Resolver {
 			forType = new Nesting.ForType();
 			nesting.byType.put(type, forType);
 
-			Class<?> raw = toRawType(type);
+			Class<?> raw = Types.toRawType(type);
 
 			class FactoryMatcher {
 				@Null Codec<T, I, O> codec;
@@ -196,14 +194,6 @@ public class Registry implements Codec.Resolver {
 				resolutionNesting.remove();
 			}
 		}
-	}
-
-	private static Class<?> toRawType(Type type) {
-		return switch (type) {
-			case Class<?> c -> c;
-			case ParameterizedType p -> (Class<?>) p.getRawType();
-			default -> throw Unreachable.contractual(); // requireSpecificTypes
-		};
 	}
 
 	public <T, I extends In, O extends Out>
@@ -272,11 +262,10 @@ public class Registry implements Codec.Resolver {
 	}
 
 	private static List<Entry> builtin() {
-		ScalarCodecs scalars = new ScalarCodecs();
 		return List.of(
-			new Entry(scalars, Medium.Any, scalars.classes()),
-			new Entry(new OptionalCodecs(), Medium.Any, new Class<?>[]{Optional.class}),
-			new Entry(new CollectionCodecs(), Medium.Any, new Class<?>[0])
+			new Entry(ScalarCodecs.Factory, Medium.Any, ScalarCodecs.classes()),
+			new Entry(ContainerCodecs.GenericFactory, Medium.Any, ContainerCodecs.classes()),
+			new Entry(ContainerCodecs.ArraysFactory, Medium.Any, new Class<?>[0])
 		);
 	}
 }

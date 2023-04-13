@@ -2,11 +2,10 @@ package io.immutables.codec;
 
 import io.immutables.meta.Null;
 import java.io.IOException;
-import java.lang.reflect.Type;
 import java.util.HashMap;
 import java.util.Map;
 
-final class ScalarCodecs implements Codec.Factory<In, Out> {
+final class ScalarCodecs {
 	private static final Map<Class<?>, Codec<?, In, Out>> codecs = new HashMap<>();
 	static {
 		var intCodec = new IntegerCodec();
@@ -30,16 +29,11 @@ final class ScalarCodecs implements Codec.Factory<In, Out> {
 	}
 	private static final Class<?>[] classes = codecs.keySet().toArray(new Class<?>[0]);
 
-	public Class<?>[] classes() {
+	public static Class<?>[] classes() {
 		return classes.clone();
 	}
 
-	public @Null Codec<?, In, Out> tryCreate(
-		Type type, Class<?> raw,
-		Medium<? extends In, ? extends Out> medium,
-		Codec.Lookup<In, Out> lookup) {
-		return codecs.get(raw);
-	}
+	static final Codec.Factory<In, Out> Factory = (type, raw, medium, lookup) -> codecs.get(raw);
 
 	private static class StringCodec extends Codec<String, In, Out> {
 		public void encode(Out out, String s) throws IOException {

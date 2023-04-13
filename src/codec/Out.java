@@ -2,7 +2,8 @@ package io.immutables.codec;
 
 import java.io.IOException;
 
-public abstract class Out extends StreamBase {
+public abstract class Out {
+	public abstract NameIndex index(String... known);
 
 	public abstract void putNull() throws IOException;
 

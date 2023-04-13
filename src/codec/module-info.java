@@ -1,3 +1,6 @@
+import io.immutables.codec.record.DefaultMetadataProvider;
+import io.immutables.codec.record.MetadataProvider;
+
 module io.immutables.codec {
 	requires static io.immutables.meta;
 	requires com.fasterxml.jackson.core;
@@ -8,4 +11,7 @@ module io.immutables.codec {
 	exports io.immutables.codec;
 	exports io.immutables.codec.record;
 	exports io.immutables.codec.jackson;
+
+	uses MetadataProvider;
+	provides MetadataProvider with DefaultMetadataProvider;
 }

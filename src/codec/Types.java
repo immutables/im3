@@ -15,7 +15,7 @@ public final class Types {
 	 * also be specific types recursively.
 	 * I.e. we ban any type variables and existential types.
 	 */
-	public static Type requireSpecificTypes(Type type) {
+	public static Type requireSpecific(Type type) {
 		if (type instanceof Class<?> c) {
 			var parameters = c.getTypeParameters();
 			if (parameters.length != 0) throw new IllegalArgumentException(
@@ -23,7 +23,7 @@ public final class Types {
 					+ "use fully instantiated type " + c);
 		} else if (type instanceof ParameterizedType p) {
 			for (var a : p.getActualTypeArguments()) {
-				requireSpecificTypes(a);
+				requireSpecific(a);
 			}
 		} else throw new IllegalArgumentException(
 			"a type cannot contain non-specific types. But contained " + type);
@@ -64,8 +64,20 @@ public final class Types {
 		return argument;
 	}
 
-	static Type getFirstArgument(Type type) {
+	public static Type[] getTypeArguments(Type type) {
+		return type instanceof ParameterizedType p ? p.getActualTypeArguments() : new Type[0];
+	}
+
+	public static Type getFirstArgument(Type type) {
 		return ((ParameterizedType) type).getActualTypeArguments()[0];
+	}
+
+	public static Class<?> toRawType(Type type) {
+		return switch (type) {
+			case Class<?> c -> c;
+			case ParameterizedType p -> (Class<?>) p.getRawType();
+			default -> throw new IllegalArgumentException("No raw type for " + type);
+		};
 	}
 
 	private record AppliedType(Class<?> raw, Type[] arguments)
@@ -102,7 +114,7 @@ public final class Types {
 				"Must have all variables substituted! Missing %s occurring in %s where substitutions are %s".formatted(v, type, variables));
 
 			if (assertionsEnabled) try {
-				requireSpecificTypes(substitution);
+				requireSpecific(substitution);
 			} catch (Exception e) {
 				throw new AssertionError(e);
 			}

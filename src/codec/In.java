@@ -1,8 +1,11 @@
 package io.immutables.codec;
 
 import java.io.IOException;
+import java.lang.reflect.Type;
 
-public abstract class In extends StreamBase {
+public abstract class In {
+	public abstract NameIndex index(String... known);
+
 	public enum At {
 		Null,
 		Int,
@@ -34,12 +37,12 @@ public abstract class In extends StreamBase {
 
 	public abstract String takeString() throws IOException;
 
-	public abstract int takeName(NameIndex names) throws IOException;
+	public abstract int takeString(NameIndex names) throws IOException;
 
 	public abstract int takeField() throws IOException;
 
 	/**
-	 * Last name that was read, useful when {@link #takeField()} or {@link #takeName(NameIndex)}
+	 * Last name that was read, useful when {@link #takeField()} or {@link #takeString(NameIndex)}
 	 * return {@link NameIndex#UNKNOWN}. This should be consulted immediately after mentioned
 	 * {@code takeField} and {@code takeName} operations, and it should be an error/undefined to call
 	 * it in other contexts.
@@ -71,10 +74,20 @@ public abstract class In extends StreamBase {
 		public abstract In in();
 	}
 
+	public void missing(String name, Type type) {
+		// todo handle
+	}
+
+	public void unrecognized() throws IOException {
+		String name = name();
+		At at = peek();
+		// todo record name + token
+	}
+
 	public boolean hasProblems() {return false;}
 
 	private boolean instanceFailed;
-	public boolean instanceFailed() {return instanceFailed;}
+	public boolean wasInstanceFailed() {return instanceFailed;}
 
 	public void failInstance() {
 		instanceFailed = true;

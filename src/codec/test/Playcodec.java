@@ -8,11 +8,19 @@ import io.immutables.meta.Null;
 import java.io.IOException;
 import java.io.StringWriter;
 import java.lang.reflect.Type;
+import java.util.Arrays;
 import com.fasterxml.jackson.core.*;
 import com.fasterxml.jackson.core.json.JsonReadFeature;
 import com.fasterxml.jackson.core.json.JsonWriteFeature;
 import com.fasterxml.jackson.core.util.DefaultPrettyPrinter;
 import org.junit.Test;
+
+record C() implements Abc {}
+
+sealed interface Abc {
+	record A() implements Abc {}
+	record B() implements Abc {}
+}
 
 public class Playcodec {
 /*	static class Base<X> {
@@ -86,6 +94,12 @@ public class Playcodec {
 	public record Xul<E, H>(E a, H b) {}
 
 	public static void main(String[] args) throws IOException {
+		Class<?>[] subclasses = Abc.class.getPermittedSubclasses();
+
+		System.out.println(Arrays.toString(subclasses));
+	}
+
+	public static void main2(String[] args) throws IOException {
 
 		Registry registry = new Registry.Builder()
 			.add(new RecordsFactory())

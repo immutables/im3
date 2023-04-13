@@ -10,8 +10,9 @@ import java.util.HashMap;
 import java.util.Map;
 
 @SuppressWarnings("unchecked") // TODO explain
-final class RecordCodec<T> extends Codec<T, In, Out> {
+final class RecordCodec<T> extends CaseCodec<T, In, Out> {
 	private final String[] componentNames;
+	private final Type[] componentTypes;
 	private final Codec<Object, In, Out>[] componentCodecs;
 	private final Method[] componentAccessors;
 	private final Constructor<?> canonicalConstructor;
@@ -30,7 +31,7 @@ final class RecordCodec<T> extends Codec<T, In, Out> {
 
 		var length = components.length;
 		componentNames = new String[length];
-		// var componentTypes = new Type[components.length];
+		componentTypes = new Type[components.length];
 		componentCodecs = (Codec<Object, In, Out>[]) new Codec<?, ?, ?>[length];
 		componentAccessors = new Method[length];
 		var componentRawTypes = new Class<?>[length];
@@ -43,13 +44,51 @@ final class RecordCodec<T> extends Codec<T, In, Out> {
 			// like NonCompliantRecordDefinition
 			var componentType = Types.resolveTypeArguments(c.getGenericType(), arguments);
 
-			// componentTypes[i] = componentType;
+			componentTypes[i] = componentType;
 			componentRawTypes[i] = c.getType();
-			componentCodecs[i] = lookup.get(componentType);
 			componentAccessors[i] = c.getAccessor();
+
+			var codec = lookup.get(componentType);
+			if (RecordsFactory.metadata.isNullableComponent(c)) {
+				codec = Codecs.nullSafe(codec);
+			}
+			componentCodecs[i] = codec;
 		}
 
 		canonicalConstructor = matchConstructor(raw, componentRawTypes);
+	}
+
+	public boolean mayConform(In in) throws IOException {
+		// only for structs
+		if (in.peek() != In.At.Struct) return false;
+
+		if (names == null) names = in.index(componentNames);
+
+		int length = componentNames.length;
+		var componentPresent = new boolean[length];
+
+		in.beginStruct(names);
+
+		while (in.hasNext()) {
+			int f = in.takeField();
+			if (f >= 0) {
+				componentPresent[f] = true;
+				in.skip();
+			} else {
+				return false;
+			}
+		}
+		in.endStruct();
+
+		for (int i = 0; i < length; i++) {
+			if (!componentPresent[i]) {
+				if (componentCodecs[i] instanceof DefaultingCodec<Object, In, Out> defaulting
+					&& defaulting.providesDefault()) continue;
+				return false;
+			}
+		}
+		// no unknown, all non-default are present
+		return true;
 	}
 
 	private Map<TypeVariable<?>, Type> mapTypeArguments(Class<?> raw, Type type) {
@@ -79,10 +118,14 @@ final class RecordCodec<T> extends Codec<T, In, Out> {
 
 		out.beginStruct(names);
 		for (int i = 0; i < length; i++) {
-			out.putField(i);
+			var value = Reflect.getValue(componentAccessors[i], instance);
+			var codec = componentCodecs[i];
 
-			var value = getValue(componentAccessors[i], instance);
-			componentCodecs[i].encode(out, value);
+			if (codec instanceof DefaultingCodec<Object, In, Out> defaulting
+				&& defaulting.canSkip(out, value)) continue;
+
+			out.putField(i);
+			codec.encode(out, value);
 		}
 		out.endStruct();
 	}
@@ -98,30 +141,43 @@ final class RecordCodec<T> extends Codec<T, In, Out> {
 
 		boolean componentFailed = false;
 		while (in.hasNext()) {
-			int i = in.takeField();
-			if (i >= 0) {
-				componentPresent[i] = true;
-				componentValues[i] = componentCodecs[i].decode(in);
+			int f = in.takeField();
+			if (f >= 0) {
+				componentPresent[f] = true;
+				componentValues[f] = componentCodecs[f].decode(in);
 
 				componentFailed |= in.clearInstanceFailed();
 			} else {
-
+				in.unrecognized();
+				in.skip();
 			}
 		}
 
 		in.endStruct();
 
-		if (componentFailed) {
-			in.failInstance();
-		}
-
+		// this block handles missing components,
+		// either providing default value if possible or admitting that it's
+		// indeed missing and current record instance cannot be created
 		for (int i = 0; i < length; i++) {
 			if (!componentPresent[i]) {
-				componentValues[i] = componentCodecs[i].defaultInstance();
+				if (componentCodecs[i] instanceof DefaultingCodec<Object, In, Out> defaulting
+					&& defaulting.providesDefault()) {
+					componentValues[i] = defaulting.getDefault();
+				} else {
+					in.missing(componentNames[i], componentTypes[i]);
+					componentFailed = true;
+				}
 			}
 		}
 
-		return (T) newInstance(canonicalConstructor, componentValues);
+		if (componentFailed) {
+			in.failInstance();
+			return null;
+		}
+
+		var instance = Reflect.newInstance(canonicalConstructor, componentValues);
+
+		return (T) instance;
 	}
 
 	private static Constructor<?> matchConstructor(Class<?> record, Class<?>[] components) {
@@ -131,25 +187,5 @@ final class RecordCodec<T> extends Codec<T, In, Out> {
 			}
 		}
 		throw Unreachable.contractual();
-	}
-
-	private static Object newInstance(Constructor<?> constructor, Object[] arguments) {
-		try {
-			return constructor.newInstance(arguments);
-		} catch (IllegalAccessException | InstantiationException e) {
-			throw new RuntimeException(e);
-		} catch (InvocationTargetException e) {
-			throw new RuntimeException(e.getCause());
-		}
-	}
-
-	private static Object getValue(Method accessor, Object instance) {
-		try {
-			return accessor.invoke(instance);
-		} catch (IllegalAccessException e) {
-			throw new RuntimeException(e);
-		} catch (InvocationTargetException e) {
-			throw new RuntimeException(e.getCause());
-		}
 	}
 }
