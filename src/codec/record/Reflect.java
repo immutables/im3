@@ -1,12 +1,13 @@
 package io.immutables.codec.record;
 
-import io.immutables.meta.Null;
+import io.immutables.common.Unreachable;
 import java.lang.reflect.*;
+import java.util.Arrays;
 
 final class Reflect {
 	private Reflect() {}
 
-	static Object newInstance(Constructor<?> constructor, Object[] arguments) {
+	static Object newInstance(Constructor<?> constructor, Object... arguments) {
 		try {
 			return constructor.newInstance(arguments);
 		} catch (IllegalAccessException | InstantiationException e) {
@@ -43,5 +44,15 @@ final class Reflect {
 		} catch (InvocationTargetException e) {
 			throw new RuntimeException(e.getCause());
 		}
+	}
+
+	static Constructor<?> getCanonicalConstructor(Class<?> record, Class<?>[] components) {
+		assert record.isRecord();
+		for (var c : record.getDeclaredConstructors()) {
+			if (Arrays.equals(c.getParameterTypes(), components)) {
+				return c;
+			}
+		}
+		throw Unreachable.contractual();
 	}
 }

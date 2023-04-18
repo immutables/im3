@@ -6,6 +6,7 @@ import java.lang.reflect.Type;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.function.Function;
 import static io.immutables.codec.Types.isRewrapped;
 import static io.immutables.codec.Types.requireSpecific;
 import static java.util.Objects.requireNonNull;
@@ -245,6 +246,15 @@ public class Registry implements Codec.Resolver {
 		public <I extends In, O extends Out> Builder add(
 			Codec.Factory<I, O> factory, Medium<I, O> medium, Class<?>... rawTypes) {
 			entries.add(new Entry(factory, medium, rawTypes));
+			return this;
+		}
+
+		public <T> Builder add(
+			Function<T, String> toString, Function<String, T> fromString, Class<? extends T> type) {
+			var codec = StringCodec.from(toString, fromString, type);
+			entries.add(new Entry(
+				(t, r, m, l) -> r == type ? codec : null,
+				Medium.Any, codec.classes()));
 			return this;
 		}
 

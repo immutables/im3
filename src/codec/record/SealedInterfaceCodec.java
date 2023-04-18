@@ -10,15 +10,17 @@ import java.util.Map;
 import static io.immutables.codec.record.RecordsFactory.metadata;
 
 final class SealedInterfaceCodec extends DefaultingCodec<Object, In, Out> {
-	private final Map<Class<?>, Codec<Object, In, Out>> subclasses = new HashMap<>();
+	private final Map<Class<?>, Codec<Object, In, Out>> subclassesCodecs = new HashMap<>();
 	private final @Null Member reflectiveDefault;
+	private final Type type;
 	private final Class<?> raw;
 
 	SealedInterfaceCodec(Type type, Class<?> raw, Lookup<In, Out> lookup) {
+		this.type = type;
 		this.raw = raw;
 		var permittedSubclasses = raw.getPermittedSubclasses();
 
-		Type[] arguments = Types.getTypeArguments(type);
+		Type[] arguments = Types.getArguments(type);
 		if (arguments.length > 0) {
 			checkTypeParametersMatchExactly(type, raw, permittedSubclasses);
 		}
@@ -26,8 +28,8 @@ final class SealedInterfaceCodec extends DefaultingCodec<Object, In, Out> {
 		for (var c : permittedSubclasses) {
 			// this based on the checkTypeParametersMatchExactly check,
 			// that type parameters of both interface and subtype record mush match exactly
-			var subtype = arguments.length > 0 ? Types.newParameterizedType(c, arguments) : c;
-			subclasses.put(c, lookup.get(subtype));
+			var subtype = arguments.length > 0 ? Types.newParameterized(c, arguments) : c;
+			subclassesCodecs.put(c, lookup.get(subtype));
 		}
 
 		this.reflectiveDefault = metadata.findReflectiveDefault(raw);
@@ -44,11 +46,10 @@ final class SealedInterfaceCodec extends DefaultingCodec<Object, In, Out> {
 				if (interfaceParameters.length != subclassParametes.length) break ok;
 				// this routine doesn't consider superinterfaces / intermediate interfaces
 				// for sealed types, can those be sandwiched in practice?
-				Type[] interfaces = subclass.getGenericInterfaces();
 				boolean foundInterface = false;
-				for (var iface : interfaces) {
-					if (Types.toRawType(iface) == raw) {
-						if (!Arrays.equals(subclassParametes, Types.getTypeArguments(iface))) break ok;
+				for (var anInterface : subclass.getGenericInterfaces()) {
+					if (Types.toRawType(anInterface) == raw) {
+						if (!Arrays.equals(subclassParametes, Types.getArguments(anInterface))) break ok;
 						foundInterface = true;
 						break;
 					}
@@ -65,7 +66,7 @@ final class SealedInterfaceCodec extends DefaultingCodec<Object, In, Out> {
 	}
 
 	public void encode(Out out, Object instance) throws IOException {
-		@Null var subclassCodec = subclasses.get(instance.getClass());
+		@Null var subclassCodec = subclassesCodecs.get(instance.getClass());
 		if (subclassCodec == null) throw new RuntimeException(
 			"Unexpected subclass of %s of %s".formatted(instance.getClass(), raw));
 
@@ -77,7 +78,7 @@ final class SealedInterfaceCodec extends DefaultingCodec<Object, In, Out> {
 
 		@Null Codec<Object, In, Out> actualCodec = null;
 
-		for (var c : subclasses.values()) {
+		for (var c : subclassesCodecs.values()) {
 			if (c instanceof CaseCodec<Object, In, Out> candidate) {
 				if (candidate.mayConform(buffer.in())) {
 					actualCodec = candidate;
@@ -102,5 +103,9 @@ final class SealedInterfaceCodec extends DefaultingCodec<Object, In, Out> {
 		return reflectiveDefault != null
 			? Reflect.constructValue(reflectiveDefault)
 			: null;
+	}
+
+	public String toString() {
+		return getClass().getSimpleName() + "<" + type.getTypeName() + ">";
 	}
 }

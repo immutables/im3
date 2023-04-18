@@ -3,10 +3,12 @@ package io.immutables.codec.record;
 import io.immutables.codec.*;
 import io.immutables.meta.Null;
 import java.io.IOException;
-import java.lang.reflect.*;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.Method;
+import java.lang.reflect.Type;
 
 @SuppressWarnings("unchecked") // TODO explain
-final class RecordCodec<T> extends CaseCodec<T, In, Out> implements Expecting {
+final class ProductRecordCodec<T> extends CaseCodec<T, In, Out> implements Expecting {
 	private final String[] componentNames;
 	private final Type[] componentTypes;
 	private final Codec<Object, In, Out>[] componentCodecs;
@@ -14,13 +16,7 @@ final class RecordCodec<T> extends CaseCodec<T, In, Out> implements Expecting {
 	private final Constructor<?> canonicalConstructor;
 	private final Type type;
 
-	// we don't impose volatile read barrier on lazy names, we expect it's ok
-	// to compute more than once under race conditions, no harm
-	// is expected as these instances are to be immutable and suitable
-	// for this codec for medium
-	private @Null NameIndex names;
-
-	RecordCodec(Type type, Class<?> raw, Codec.Lookup<In, Out> lookup) {
+	ProductRecordCodec(Type type, Class<?> raw, Codec.Lookup<In, Out> lookup) {
 		this.type = type;
 		assert raw.isRecord();
 
@@ -57,95 +53,70 @@ final class RecordCodec<T> extends CaseCodec<T, In, Out> implements Expecting {
 	}
 
 	public boolean mayConform(In in) throws IOException {
-		// only for structs
-		if (in.peek() != In.At.Struct) return false;
-
-		if (names == null) names = in.index(componentNames);
+		// only for arrays
+		if (in.peek() != In.At.Array) return false;
 
 		int length = componentNames.length;
-		var componentPresent = new boolean[length];
+		in.beginArray();
 
-		in.beginStruct(names);
-
+		int i = 0;
 		while (in.hasNext()) {
-			int f = in.takeField();
-			if (f >= 0) {
-				componentPresent[f] = true;
+			if (i >= length) {
+				// extra components
+				return false;
+			}
+			var c = componentCodecs[i];
+			if (c instanceof CaseCodec<Object, In, Out> caseCodec) {
+				if (!caseCodec.mayConform(in)) return false;
 				in.skip();
-			} else {
-				return false;
+			} else if (c instanceof Expecting expects) {
+				if (!expects.canExpect(in.peek())) return false;
+				in.skip();
 			}
+			i++;
 		}
-		in.endStruct();
-
-		for (int i = 0; i < length; i++) {
-			if (!componentPresent[i]) {
-				if (componentCodecs[i] instanceof DefaultingCodec<Object, In, Out> defaulting
-					&& defaulting.providesDefault()) continue;
-				return false;
-			}
-		}
-		// no unknown, all non-default are present
-		return true;
+		in.endArray();
+		// check for insufficient components (extra components would return earlier
+		return i == length;
 	}
 
 	public void encode(Out out, T instance) throws IOException {
-		if (names == null) names = out.index(componentNames);
-
 		var length = componentNames.length;
 
-		out.beginStruct(names);
+		out.beginArray();
 		for (int i = 0; i < length; i++) {
 			var value = Reflect.getValue(componentAccessors[i], instance);
-			var codec = componentCodecs[i];
-
-			if (codec instanceof DefaultingCodec<Object, In, Out> defaulting
-				&& defaulting.canSkip(out, value)) continue;
-
-			out.putField(i);
-			codec.encode(out, value);
+			componentCodecs[i].encode(out, value);
 		}
-		out.endStruct();
+		out.endArray();
 	}
 
 	public @Null T decode(In in) throws IOException {
-		if (names == null) names = in.index(componentNames);
-
 		var length = componentNames.length;
 		var componentValues = new Object[length];
-		var componentPresent = new boolean[length];
 
-		in.beginStruct(names);
+		in.beginArray();
 
 		boolean componentFailed = false;
+		int i = 0;
 		while (in.hasNext()) {
-			int f = in.takeField();
-			if (f >= 0) {
-				componentPresent[f] = true;
-				componentValues[f] = componentCodecs[f].decode(in);
-
+			if (i < length) {
+				componentValues[i] = componentCodecs[i].decode(in);
 				componentFailed |= in.clearInstanceFailed();
 			} else {
 				in.unknown();
 				in.skip();
+				componentFailed = true;
 			}
+			i++;
 		}
 
-		in.endStruct();
+		in.endArray();
 
-		// this block handles missing components,
-		// either providing default value if possible or admitting that it's
-		// indeed missing and current record instance cannot be created
-		for (int i = 0; i < length; i++) {
-			if (!componentPresent[i]) {
-				if (componentCodecs[i] instanceof DefaultingCodec<Object, In, Out> defaulting
-					&& defaulting.providesDefault()) {
-					componentValues[i] = defaulting.getDefault();
-				} else {
-					in.missing(componentNames[i], componentTypes[i].getTypeName());
-					componentFailed = true;
-				}
-			}
+		// this block handles missing components, when not enough components read from array
+		for (int j = i; j < length; j++) {
+			in.missing(componentNames[j], componentTypes[j]);
+			componentFailed = true;
 		}
 
 		if (componentFailed) {
@@ -159,7 +130,7 @@ final class RecordCodec<T> extends CaseCodec<T, In, Out> implements Expecting {
 	}
 
 	public boolean canExpect(In.At first) {
-		return first == In.At.Struct;
+		return first == In.At.Array;
 	}
 
 	public String toString() {

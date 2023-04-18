@@ -50,7 +50,7 @@ public abstract class Codec<T, I extends In, O extends Out> {
 	/**
 	 * Special delegate to allow codecs to lookup other codecs
 	 * within context of the same medium and any other internal sequencing
-	 * (think about recursive types). Also, it fails when codec is not found,
+	 * (think about handling even recursive types). Also, it fails when codec is not found,
 	 * because it considered required.
 	 */
 	public interface Lookup<I extends In, O extends Out> {

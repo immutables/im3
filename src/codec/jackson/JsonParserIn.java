@@ -189,4 +189,20 @@ public final class JsonParserIn extends In {
 
 	private int framePointer = -1;
 	private JsonNameIndex[] frames = new JsonNameIndex[8];
+
+	public String path() throws IOException {
+		var path = new StringBuilder();
+		for (var c = parser.getParsingContext(); c != null; c = c.getParent()) {
+			// prepending text to path at 0 index, in reverse
+			if (c.inObject()) {
+				path.insert(0, c.getCurrentName())
+					.insert(0, '.');
+			} else if (c.inArray()) {
+				path.insert(0, ']')
+					.insert(0, c.getCurrentIndex())
+					.insert(0, '[');
+			} else if (c.inRoot()) break;
+		}
+		return path.insert(0, "$").toString();
+	}
 }

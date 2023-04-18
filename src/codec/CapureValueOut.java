@@ -32,7 +32,7 @@ public class CapureValueOut extends Out {
 		this.stringValue = s;
 	}
 
-	public void putChars(char[] chars, int offset, int length) throws IOException {
+	public void putString(char[] chars, int offset, int length) throws IOException {
 
 	}
 

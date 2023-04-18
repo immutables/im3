@@ -3,9 +3,7 @@ package io.immutables.codec;
 import java.io.IOException;
 import java.lang.reflect.Type;
 
-public abstract class In {
-	public abstract NameIndex index(String... known);
-
+public abstract class In extends CanHaveProblems {
 	public enum At {
 		Null,
 		Int,
@@ -14,14 +12,31 @@ public abstract class In {
 		True,
 		False,
 		String,
+		Special,
 		Struct,
 		StructEnd,
 		Field,
 		Array,
 		ArrayEnd,
 		End,
-		Nope,
+		Nope;
+
+		public boolean isScalar() {
+			return switch (this) {
+				case Null,
+					Int,
+					Long,
+					Float,
+					True,
+					False,
+					String,
+					Special -> true;
+				default -> false;
+			};
+		}
 	}
+
+	public abstract NameIndex index(String... known);
 
 	public abstract At peek() throws IOException;
 
@@ -72,30 +87,5 @@ public abstract class In {
 
 	public static abstract class Buffer {
 		public abstract In in();
-	}
-
-	public void missing(String name, Type type) {
-		// todo handle
-	}
-
-	public void unrecognized() throws IOException {
-		String name = name();
-		At at = peek();
-		// todo record name + token
-	}
-
-	public boolean hasProblems() {return false;}
-
-	private boolean instanceFailed;
-	public boolean wasInstanceFailed() {return instanceFailed;}
-
-	public void failInstance() {
-		instanceFailed = true;
-	}
-
-	public boolean clearInstanceFailed() {
-		boolean b = instanceFailed;
-		instanceFailed = false;
-		return b;
 	}
 }

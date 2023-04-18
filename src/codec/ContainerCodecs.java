@@ -238,8 +238,10 @@ final class ContainerCodecs {
 		return classes.clone();
 	}
 
-	private static final Class<?>[] classes = {List.class, Set.class,
-		Optional.class, OptionalInt.class, OptionalLong.class, OptionalDouble.class};
+	private static final Class<?>[] classes = {
+		List.class, Set.class,
+		Optional.class, OptionalInt.class, OptionalLong.class, OptionalDouble.class
+	};
 
 	// In the end to avoid problems with forward references to constant codecs
 	static final Codec.Factory<In, Out> GenericFactory = (type, raw, medium, lookup) -> {
@@ -252,8 +254,8 @@ final class ContainerCodecs {
 			return new SetCodec(lookup.get(elementType));
 		}
 		if (raw == Optional.class) {
-			return new OptionalCodec<>(
-				lookup.get(Types.getFirstArgument(type)));
+			var elementType = Types.getFirstArgument(type);
+			return new OptionalCodec<>(lookup.get(elementType));
 		}
 		if (raw == OptionalInt.class) return optionalIntCodec;
 		if (raw == OptionalLong.class) return optionalLongCodec;

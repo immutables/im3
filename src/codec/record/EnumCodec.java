@@ -1,21 +1,24 @@
 package io.immutables.codec.record;
 
+import io.immutables.codec.Expecting;
 import io.immutables.codec.In;
 import io.immutables.codec.NameIndex;
 import io.immutables.codec.Out;
 import io.immutables.meta.Null;
 import java.io.IOException;
 
-final class EnumCodec<E extends Enum<E>> extends CaseCodec<E, In, Out> {
+final class EnumCodec<E extends Enum<E>> extends CaseCodec<E, In, Out> implements Expecting {
 	private final String[] constantNames;
 	private final E[] constants;
 	private final @Null E defaultConstant;
+	private final Class<?> raw;
 
 	// it's ok without volatile barrier
 	private @Null NameIndex names;
 
 	@SuppressWarnings("unchecked") // generic E here is for internal consistency, runtime checked
 	EnumCodec(Class<?> raw) {
+		this.raw = raw;
 		assert raw.isEnum();
 
 		var enumType = (Class<E>) raw;
@@ -59,5 +62,13 @@ final class EnumCodec<E extends Enum<E>> extends CaseCodec<E, In, Out> {
 			return in.takeString(names) >= 0;
 		}
 		return false;
+	}
+
+	public boolean canExpect(In.At first) {
+		return first == In.At.String;
+	}
+
+	public String toString() {
+		return getClass().getSimpleName() + "<" + raw.getTypeName() + ">";
 	}
 }

@@ -12,7 +12,9 @@ import java.util.Arrays;
 import com.fasterxml.jackson.core.*;
 import com.fasterxml.jackson.core.json.JsonReadFeature;
 import com.fasterxml.jackson.core.json.JsonWriteFeature;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.core.util.DefaultPrettyPrinter;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.Test;
 
 record C() implements Abc {}
@@ -23,6 +25,8 @@ sealed interface Abc {
 }
 
 public class Playcodec {
+
+
 /*	static class Base<X> {
 		final Type type;
 
@@ -93,7 +97,7 @@ public class Playcodec {
 
 	public record Xul<E, H>(E a, H b) {}
 
-	public static void main(String[] args) throws IOException {
+	public static void main3(String[] args) throws IOException {
 		Class<?>[] subclasses = Abc.class.getPermittedSubclasses();
 
 		System.out.println(Arrays.toString(subclasses));
@@ -167,4 +171,55 @@ public class Playcodec {
 			System.out.println(xui2);
 		}
 	}
+
+	public static class Yy {
+		public String o;
+	}
+
+	public static class Abc<E> {
+		public E abc;
+		public int hiu;
+	}
+
+	public static void main(String[] args) throws IOException {
+
+		ObjectMapper mapper = new ObjectMapper(factory);
+
+
+		JsonParser parser = mapper.createParser("[{abc:{o:\"ABC\"},hiu:[9, {c:null}]}, {a:1,b:2}]");
+
+		JsonParserIn in = new JsonParserIn(parser);
+
+		in.beginArray();
+		while (in.hasNext()) {
+			in.beginStruct(in.index());
+			while (in.hasNext()) {
+				in.takeField();
+				if (in.peek() == In.At.Struct) {
+					in.beginStruct(in.index());
+					while (in.hasNext()) {
+						in.takeField();
+						System.out.println(in.path());
+						in.skip();
+					}
+					in.endStruct();
+				} else {
+					System.out.println(in.path());
+					in.skip();
+				}
+			}
+			in.endStruct();
+		}
+		in.beginArray();
+
+		/*@Null JsonToken t = null;
+		while ((t = parser.nextToken()) != null) {
+			System.out.println(parser.getText() + "\t" + parser.getParsingContext().pathAsPointer(true));
+		}*/
+
+		//var o = (Abc<Yy>) parser.readValueAs(new TypeReference<Abc<? extends Yy>>() {});
+
+		//System.out.println(o.abc.o);
+	}
+
 }

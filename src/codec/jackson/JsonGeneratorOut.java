@@ -38,7 +38,7 @@ public class JsonGeneratorOut extends Out {
 		out.writeString(s);
 	}
 
-	public void putChars(char[] chars, int offset, int length) throws IOException {
+	public void putString(char[] chars, int offset, int length) throws IOException {
 		out.writeString(chars, offset, length);
 	}
 

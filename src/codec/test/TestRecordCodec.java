@@ -1,6 +1,7 @@
 package io.immutables.codec.test;
 
 import io.immutables.codec.*;
+import io.immutables.codec.record.Inline;
 import io.immutables.codec.record.RecordsFactory;
 import java.io.IOException;
 import java.util.List;
@@ -10,10 +11,6 @@ import org.junit.Test;
 import static io.immutables.that.Assert.that;
 
 public class TestRecordCodec extends CodecFixture {
-	private final Registry registry = new Registry.Builder()
-		.add(new RecordsFactory())
-		.build();
-
 	public record X<E, K, S>(S s, List<E> e, Set<K> k) {}
 	public record U(int a, boolean b, String c) {}
 	public record E(List<String> l, Optional<Integer> opt) {}
@@ -28,6 +25,19 @@ public class TestRecordCodec extends CodecFixture {
 		record R<E, G>(E e, G g) implements Alg<E, G>{}
 		record Q<E, G>(E h, G j) implements Alg<E, G>{}
 	}
+
+	public @Inline record L(int i) {}
+	public @Inline record GL<E>(E e) {}
+	public @Inline record Coords(int x, int y) {}
+
+	public sealed interface StrOrInt {
+		@Inline record I(int i) implements StrOrInt {}
+		@Inline record S(String s) implements StrOrInt {}
+	}
+
+	private final Registry registry = new Registry.Builder()
+		.add(new RecordsFactory())
+		.build();
 
 	@Test
 	public void plainRecord() throws IOException {
@@ -45,7 +55,7 @@ public class TestRecordCodec extends CodecFixture {
 	@Test
 	public void genericRecord() throws IOException {
 		var codec = registry.<X<String, Integer, boolean[]>, In, Out>resolve(
-			Types.newParameterizedType(X.class, String.class, Integer.class, boolean[].class),
+			Types.newParameterized(X.class, String.class, Integer.class, boolean[].class),
 			Medium.Json).orElseThrow();
 
 		var x = new X<>(new boolean[]{true, false}, List.of("y"), Set.of(8, 7));
@@ -88,7 +98,7 @@ public class TestRecordCodec extends CodecFixture {
 
 	@Test
 	public void polymorphicGeneric() throws IOException {
-		var codec = registry.resolve(Types.newParameterizedType(
+		var codec = registry.resolve(Types.newParameterized(
 			Alg.class, String.class, Integer.class), Medium.Json).orElseThrow();
 
 		thatEqualRoundtrip(codec, new Alg.R<>("e", 1));
@@ -102,5 +112,34 @@ public class TestRecordCodec extends CodecFixture {
 		thatEqualRoundtrip(codec, Alt.C.U);
 		thatEqualRoundtrip(codec, Alt.C.V);
 		that(toJson(codec, Alt.C.W)).is("\"W\"");
+	}
+
+	@Test
+	public void inline() throws IOException {
+		var forL = registry.resolve(L.class, Medium.Json).orElseThrow();
+		var forGL = registry.resolve(
+			Types.newParameterized(GL.class, String.class), Medium.Json).orElseThrow();
+
+		that(toJson(forL, new L(42))).is("42");
+		thatEqualRoundtrip(forL, new L(3));
+
+		that(toJson(forGL, new GL<>("abc"))).is("\"abc\"");
+		thatEqualRoundtrip(forGL, new GL<>("wyz"));
+	}
+
+	@Test
+	public void polymorphicInline() throws IOException {
+		var soi = registry.resolve(StrOrInt.class, Medium.Json).orElseThrow();
+
+		thatEqualRoundtrip(soi, new StrOrInt.I(9));
+		thatEqualRoundtrip(soi, new StrOrInt.S("S"));
+	}
+
+	@Test
+	public void inlineProduct() throws IOException {
+		var codec = registry.resolve(Coords.class, Medium.Json).orElseThrow();
+
+		that(toJson(codec, new Coords(1, 2))).is("[1,2]");
+		thatEqualRoundtrip(codec, new Coords(6, 7));
 	}
 }

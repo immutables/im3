@@ -4,6 +4,7 @@ import io.immutables.meta.Null;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.lang.reflect.TypeVariable;
+import java.util.HashMap;
 import java.util.Map;
 
 public final class Types {
@@ -31,7 +32,7 @@ public final class Types {
 		return rewrapParameterized(type);
 	}
 
-	public static ParameterizedType newParameterizedType(Class<?> raw, Type... arguments) {
+	public static ParameterizedType newParameterized(Class<?> raw, Type... arguments) {
 		if (arguments.length != raw.getTypeParameters().length) {
 			throw new IllegalArgumentException("Arguments length and parameters mismatch");
 		}
@@ -64,7 +65,7 @@ public final class Types {
 		return argument;
 	}
 
-	public static Type[] getTypeArguments(Type type) {
+	public static Type[] getArguments(Type type) {
 		return type instanceof ParameterizedType p ? p.getActualTypeArguments() : new Type[0];
 	}
 
@@ -78,6 +79,26 @@ public final class Types {
 			case ParameterizedType p -> (Class<?>) p.getRawType();
 			default -> throw new IllegalArgumentException("No raw type for " + type);
 		};
+	}
+
+	public static Map<TypeVariable<?>, Type> mapArguments(Class<?> raw, Type type) {
+		if (type instanceof ParameterizedType p) {
+			var arguments = p.getActualTypeArguments();
+			var parameters = raw.getTypeParameters();
+
+			assert p.getRawType().equals(raw);
+			assert parameters.length == arguments.length;
+
+			var map = new HashMap<TypeVariable<?>, Type>(4);
+			for (int i = 0; i < arguments.length; i++) {
+				map.put(parameters[i], arguments[i]);
+			}
+
+			return map; // frankly, no need to wrap in immutable map
+		} else if (raw.equals(type)) {
+			assert raw.getTypeParameters().length == 0;
+			return Map.of();
+		} else throw new AssertionError("Unsupported type: " + type);
 	}
 
 	private record AppliedType(Class<?> raw, Type[] arguments)
@@ -96,7 +117,7 @@ public final class Types {
 		}
 	}
 
-	public static Type resolveTypeArguments(Type type, Map<TypeVariable<?>, Type> variables) {
+	public static Type resolveArguments(Type type, Map<TypeVariable<?>, Type> variables) {
 		if (type instanceof Class<?>) {
 			return type;
 		}
@@ -104,14 +125,15 @@ public final class Types {
 			// this array is always expected as a clone, never original
 			Type[] arguments = p.getActualTypeArguments();
 			for (int i = 0; i < arguments.length; i++) {
-				arguments[i] = resolveTypeArguments(arguments[i], variables);
+				arguments[i] = resolveArguments(arguments[i], variables);
 			}
 			return new AppliedType((Class<?>) p.getRawType(), arguments);
 		}
 		if (type instanceof TypeVariable<?> v) {
 			@Null Type substitution = variables.get(v);
 			if (substitution == null) throw new IllegalArgumentException(
-				"Must have all variables substituted! Missing %s occurring in %s where substitutions are %s".formatted(v, type, variables));
+				("Must have all variables substituted! Missing %s occurring in %s " +
+					"where substitutions are %s").formatted(v, type, variables));
 
 			if (assertionsEnabled) try {
 				requireSpecific(substitution);

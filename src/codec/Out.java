@@ -17,7 +17,7 @@ public abstract class Out {
 
 	public abstract void putString(String s) throws IOException;
 
-	public abstract void putChars(char[] chars, int offset, int length) throws IOException;
+	public abstract void putString(char[] chars, int offset, int length) throws IOException;
 
 	public abstract void putString(NameIndex names, int index) throws IOException;
 
@@ -32,4 +32,8 @@ public abstract class Out {
 	public abstract void putField(String name) throws IOException;
 
 	public abstract void endStruct() throws IOException;
+
+	public abstract class Buffer {
+		//Out out();
+	}
 }

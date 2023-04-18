@@ -41,7 +41,7 @@ public final class Assert {
 	 * @param actual optional object
 	 * @return that optional
 	 */
-	public static <T> That.Optional<T> that(java.util.Optional<T> actual) {
+	public static <T> That.Optional<T> that(@Null java.util.Optional<T> actual) {
 		class Tested extends That.What<java.util.Optional<T>, That.Optional<T>> implements That.Optional<T> {}
 		return new Tested().set(actual);
 	}
@@ -51,7 +51,7 @@ public final class Assert {
 	 * @param actual iterable object
 	 * @return that iterable
 	 */
-	public static <T> That.Iterable<T> that(Iterable<T> actual) {
+	public static <T> That.Iterable<T> that(@Null Iterable<T> actual) {
 		class Tested extends That.What<Iterable<T>, That.Iterable<T>> implements That.Iterable<T> {}
 		return new Tested().set(actual);
 	}
@@ -61,7 +61,7 @@ public final class Assert {
 	 * @param actual stream object
 	 * @return that iterable
 	 */
-	public static <T> That.Iterable<T> that(java.util.stream.Stream<T> actual) {
+	public static <T> That.Iterable<T> that(@Null java.util.stream.Stream<T> actual) {
 		class Tested extends That.What<Iterable<T>, That.Iterable<T>> implements That.Iterable<T> {}
 		return new Tested().set(actual.collect(Collectors.toList()));
 	}

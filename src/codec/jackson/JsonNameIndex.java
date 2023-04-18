@@ -1,8 +1,6 @@
 package io.immutables.codec.jackson;
 
 import io.immutables.codec.NameIndex;
-import java.io.IOException;
-import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.io.SerializedString;
 
 public class JsonNameIndex extends NameIndex {

@@ -13,9 +13,10 @@ import java.util.Objects;
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonFactoryBuilder;
 import com.fasterxml.jackson.core.json.JsonReadFeature;
+import com.fasterxml.jackson.core.json.JsonWriteContext;
 import com.fasterxml.jackson.core.json.JsonWriteFeature;
 
-abstract class CodecFixture {
+public abstract class CodecFixture {
 	protected CodecFixture() {}
 
 	protected static final JsonFactory jsonFactory = new JsonFactoryBuilder()
@@ -25,17 +26,18 @@ abstract class CodecFixture {
 
 	protected static <T> String toJson(Codec<T, In, Out> codec, T instance) throws IOException {
 		var w = new StringWriter();
-		var g = jsonFactory.createGenerator(w);
-		var out = new JsonGeneratorOut(g);
-		codec.encode(out, instance);
-		g.flush();
+		try (var g = jsonFactory.createGenerator(w)) {
+			// ((JsonWriteContext)g.getOutputContext()).reset(JsonWriteContext.STATUS_OK_AS_IS);
+			var out = new JsonGeneratorOut(g);
+			codec.encode(out, instance);
+		}
 		return w.toString();
 	}
 
 	protected static <T> T fromJson(Codec<T, In, Out> codec, String json) throws IOException {
 		var p = jsonFactory.createParser(json);
 		var in = new JsonParserIn(p);
-		return Objects.requireNonNull(codec.decode(in));
+		return codec.decode(in);
 	}
 
 	protected <T> void thatEqualRoundtrip(Codec<T, In, Out> codec, T instance) throws IOException {

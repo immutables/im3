@@ -5,6 +5,7 @@ import io.immutables.codec.In;
 import io.immutables.codec.Medium;
 import io.immutables.codec.Out;
 import io.immutables.meta.Null;
+import java.lang.reflect.RecordComponent;
 import java.lang.reflect.Type;
 import java.util.Comparator;
 import java.util.ServiceLoader;
@@ -28,7 +29,11 @@ public final class RecordsFactory implements Codec.Factory<In, Out> {
 		}
 		if (raw.isRecord()) {
 			if (metadata.isInlineRecord(raw)) {
-				return new InlineRecordCodec(type, raw, lookup);
+				RecordComponent[] components = raw.getRecordComponents();
+				if (components.length == 1) {
+					return new InlineRecordCodec(type, raw, components[0], lookup);
+				}
+				return new ProductRecordCodec<>(type, raw, lookup);
 			}
 			return new RecordCodec<>(type, raw, lookup);
 		}

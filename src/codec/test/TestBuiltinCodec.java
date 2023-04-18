@@ -2,6 +2,7 @@ package io.immutables.codec.test;
 
 import io.immutables.codec.*;
 import java.io.IOException;
+import java.net.URI;
 import java.util.*;
 import org.junit.Test;
 import static io.immutables.that.Assert.that;
@@ -63,7 +64,7 @@ public class TestBuiltinCodec extends CodecFixture {
 	@Test
 	public void optional() throws IOException {
 		var forOptional = registry.<Optional<String>, In, Out>resolve(
-			Types.newParameterizedType(Optional.class, String.class), Medium.Json).orElseThrow();
+			Types.newParameterized(Optional.class, String.class), Medium.Json).orElseThrow();
 
 		String abc = "abc";
 		String json = toJson(forOptional, Optional.of(abc));
@@ -88,7 +89,7 @@ public class TestBuiltinCodec extends CodecFixture {
 	@Test
 	public void list() throws IOException {
 		var forList = registry.<List<String>, In, Out>resolve(
-			Types.newParameterizedType(List.class, String.class), Medium.Json).orElseThrow();
+			Types.newParameterized(List.class, String.class), Medium.Json).orElseThrow();
 
 		var abc = List.of("a", "b", "c");
 		String json = toJson(forList, abc);
@@ -98,10 +99,28 @@ public class TestBuiltinCodec extends CodecFixture {
 	@Test
 	public void set() throws IOException {
 		var forSet = registry.<Set<String>, In, Out>resolve(
-			Types.newParameterizedType(Set.class, String.class), Medium.Json).orElseThrow();
+			Types.newParameterized(Set.class, String.class), Medium.Json).orElseThrow();
 
 		var xyz = Set.of("x", "y", "z");
 		String json = toJson(forSet, xyz);
 		that(fromJson(forSet, json)).hasOnly(xyz);
+	}
+
+	@Test
+	public void toFromString() throws IOException {
+		var registry = new Registry.Builder()
+			.add(URI::toString, URI::create, URI.class)
+			.build();
+
+		var codec = registry.resolve(URI.class, Medium.Json).orElseThrow();
+		thatEqualRoundtrip(codec, URI.create("https://immutables.io"));
+	}
+
+	@Test
+	public void voidNull() throws IOException {
+		var codec = registry.resolve(void.class, Medium.Json).orElseThrow();
+		String json = toJson(codec, null);
+		that(json).is("null");
+		that(fromJson(codec, json)).isNull();
 	}
 }

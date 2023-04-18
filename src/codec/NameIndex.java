@@ -31,4 +31,31 @@ public abstract class NameIndex {
 			}
 		};
 	}
+
+	public static NameIndex known(String... strings) {
+		return new NameIndex() {
+			final String[] known = strings;
+
+			public String[] known() {
+				return known.clone();
+			}
+
+			public int index(String name) {
+				int i = 0;
+				for (var n : known) {
+					if (n.equals(name)) return i;
+					i++;
+				}
+				return UNKNOWN;
+			}
+
+			public String name(int index) {
+				return known[index];
+			}
+
+			public String toString() {
+				return NameIndex.class.getSimpleName() + ".known()";
+			}
+		};
+	}
 }
