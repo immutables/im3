@@ -170,7 +170,7 @@ interface Idea {
 			var link = generatedPath.resolve(suffix);
 			var target = Path.of("../../..").resolve(output).resolve(suffix);
 			System.err.println(link + " --> " + target);
-			if (Files.exists(link)) {
+			if (Files.exists(link, LinkOption.NOFOLLOW_LINKS)) {
 				Files.delete(link);
 			}
  			Files.createSymbolicLink(link, target);
