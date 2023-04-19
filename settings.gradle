@@ -1,0 +1,27 @@
+rootProject.name = 'im3'
+
+var mods = [
+	'codec',
+	'codec.jackson',
+	'common',
+	'meta',
+	'that',
+]
+
+mods.forEach { m ->
+	include(':' + m)
+
+	var p = project(':' + m)
+	p.projectDir = file('src/' + m.replace('.', '/'))
+}
+
+/*dependencyResolutionManagement {
+	versionCatalogs {
+		libs {
+			library('com.fasterxml.jackson.core', 'com.fasterxml.jackson.core:jackson-core:2.14.2')
+			library('com.fasterxml.jackson.databind', 'com.fasterxml.jackson.core:jackson-databind:2.14.2')
+			library('com.fasterxml.jackson.annotation', 'com.fasterxml.jackson.core:jackson-annotations:2.14.2')
+			library('javax.annotation.jsr305', 'com.google.code.findbugs:jsr305:3.0.1')
+		}
+	}
+}*/

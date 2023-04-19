@@ -1,0 +1,141 @@
+group 'io.immutables'
+version '0.1-SNAPSHOT'
+
+def buildOutput = file('.build/gradle/')
+def lib = file('lib/modules')
+//def src = file('src')
+def jver = 17
+
+// These settings apply to all subprojects but not the root project.
+subprojects {
+	apply plugin: 'signing'
+	apply plugin: 'java-library'
+	apply plugin: 'maven-publish'
+
+	repositories {
+		mavenCentral()
+		flatDir {
+			dirs lib
+		}
+	}
+
+	group = rootProject.group
+	version = rootProject.version
+
+	buildDir = new File(buildOutput, name)
+
+	sourceCompatibility = jver
+	targetCompatibility = jver
+	java.toolchain.languageVersion = JavaLanguageVersion.of(jver)
+
+	tasks.withType(JavaCompile) {
+		options.compilerArgs += '--enable-preview'
+	}
+	tasks.withType(Test) {
+		jvmArgs += "--enable-preview"
+	}
+	tasks.withType(JavaExec) {
+		jvmArgs += '--enable-preview'
+	}
+	tasks.withType(Javadoc) {
+		def javadocOptions = options as CoreJavadocOptions
+
+		javadocOptions.addStringOption("-release", "17")
+		javadocOptions.addBooleanOption("-enable-preview", true)
+	}
+
+	copy {
+		duplicatesStrategy = DuplicatesStrategy.INCLUDE
+	}
+
+	java {
+		modularity.inferModulePath = true
+		withJavadocJar()
+		withSourcesJar()
+	}
+
+	test {
+		jvmArgs '--enable-preview'
+	}
+
+	sourceSets {
+		main {
+			java {
+				//srcDirs =
+				def dirs = ['.']
+				def currentd = file('.')
+				currentd.eachDirRecurse { dir ->
+						if (new File(dir, "package-info.java").exists()
+						&& !new File(dir, "module-info.java").exists()) {
+							dirs += currentd.relativePath(dir)
+						}
+				}
+				include('*.java')
+			}
+		}
+	}
+
+	publishing {
+		publications {
+			mavenJava(MavenPublication) {
+				artifactId = project.name
+
+				from components.java
+				versionMapping {
+					usage('java-api') {
+						fromResolutionOf('runtimeClasspath')
+					}
+					usage('java-runtime') {
+						fromResolutionResult()
+					}
+				}
+				pom {
+					name = 'My Library'
+					description = 'A concise description of my library'
+					url = 'http://www.example.com/library'
+					properties = [
+						myProp          : "value",
+						"prop.with.dots": "anotherValue"
+					]
+					licenses {
+						license {
+							name = 'The Apache License, Version 2.0'
+							url = 'http://www.apache.org/licenses/LICENSE-2.0.txt'
+						}
+					}
+					developers {
+						developer {
+							id = 'johnd'
+							name = 'John Doe'
+							email = 'john.doe@example.com'
+						}
+					}
+					scm {
+						connection = 'scm:git:git://example.com/my-library.git'
+						developerConnection = 'scm:git:ssh://example.com/my-library.git'
+						url = 'http://example.com/my-library/'
+					}
+				}
+			}
+		}
+		repositories {
+			maven {
+				// change URLs to point to your repos, e.g. http://my.org/repo
+				def releasesRepoUrl = layout.buildDirectory.dir('repos/releases')
+				def snapshotsRepoUrl = layout.buildDirectory.dir('repos/snapshots')
+				url = version.endsWith('SNAPSHOT') ? snapshotsRepoUrl : releasesRepoUrl
+			}
+/*			maven {
+				url "https://oss.sonatype.org/service/local/staging/deploy/maven2"
+				credentials {
+					username sonatypeUsername
+					password sonatypePassword
+				}
+			}*/
+		}
+	}
+
+	signing {
+		sign publishing.publications.mavenJava
+	}
+}

@@ -14,7 +14,5 @@
 //
 @NonnullByDefault
 @CheckReturnByDefault
-package io.immutables.codec;
+package io.immutables.meta;
 
-import io.immutables.meta.CheckReturnByDefault;
-import io.immutables.meta.NonnullByDefault;
