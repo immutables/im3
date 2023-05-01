@@ -17,22 +17,22 @@ public class TestBuiltinCodec extends CodecFixture {
 		var forBoolean = registry.resolve(boolean.class, Medium.Json).orElseThrow();
 		var forDouble = registry.resolve(double.class, Medium.Json).orElseThrow();
 		var forFloat = registry.resolve(Float.class, Medium.Json).orElseThrow();
-		var out = new CapureValueOut();
+		var out = new Codecs.CaptureSimpleOut();
 
 		forString.encode(out, "abc");
-		that(out.stringValue).is("abc");
+		that(out.asString()).is("abc");
 
 		forInteger.encode(out, 42);
-		that(out.intValue).is(42);
+		that(out.asNumber().intValue()).is(42);
 
 		forBoolean.encode(out, true);
-		that(out.booleanValue).is(true);
+		that(out.asBoolean()).is(true);
 
 		forDouble.encode(out, 1.1);
-		that(out.doubleValue).bitwiseIs(1.1);
+		that(out.asNumber().doubleValue()).bitwiseIs(1.1);
 
 		forFloat.encode(out, 1f); // assumes safe f->d conversion
-		that(out.doubleValue).bitwiseIs(1d);
+		that(out.asNumber().doubleValue()).bitwiseIs(1d);
 	}
 
 	@Test

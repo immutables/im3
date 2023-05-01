@@ -2,6 +2,8 @@ package io.immutables.codec;
 
 import io.immutables.meta.Null;
 import java.io.IOException;
+import java.util.NoSuchElementException;
+import static java.util.Objects.requireNonNull;
 
 public class Codecs {
 	private Codecs() {}
@@ -37,32 +39,76 @@ public class Codecs {
 		};
 	}
 
-	public final static class CaptureStringOut extends UnimplementedOut {
-		public @Null String string;
+	public final static class CaptureSimpleOut extends UnimplementedOut {
+		private @Null Object value;
+
 		public NameIndex index(String... known) {
 			return NameIndex.known(known);
 		}
 
-		public void putString(char[] chars, int offset, int length) throws IOException {
-			string = String.valueOf(chars, offset, length);
+		public void putString(char[] chars, int offset, int length) {
+			value = String.valueOf(chars, offset, length);
 		}
 
-		public void putString(String s) throws IOException {
-			string = s;
+		public void putString(String s) {
+			value = s;
 		}
 
-		public void putString(NameIndex names, int index) throws IOException {
-			string = names.name(index);
+		public void putString(NameIndex names, int index) {
+			value = names.name(index);
+		}
+
+		public String asString() {
+			return requireNonNull(value).toString();
+		}
+
+		public Number asNumber() {
+			return switch (value) {
+				case null -> throw new NullPointerException();
+				case Number n -> n;
+				default -> Double.valueOf(value.toString());
+			};
+		}
+
+		public boolean asBoolean() {
+			return switch (value) {
+				case null -> throw new NullPointerException();
+				case Boolean b -> b;
+				default -> Boolean.parseBoolean(value.toString());
+			};
+		}
+
+		public boolean isNull() {
+			return value == MaskedNull;
+		}
+
+		public void putNull() {
+			value = MaskedNull;
+		}
+
+		public void putInt(int i) {
+			value = i;
+		}
+
+		public void putLong(long l) {
+			value = l;
+		}
+
+		public void putDouble(double d) {
+			value = d;
+		}
+
+		public void putBoolean(boolean b) {
+			value = b;
 		}
 	}
 
-	public final static class RetrieveStringIn extends UnimplementedIn {
-		private @Null String string;
-		private boolean consumed;
+	public final static class RetrieveSimpleIn extends UnimplementedIn {
+		private @Null Object value;
 
-		public void reset(String string) {
-			this.string = string;
-			this.consumed = false;
+		public RetrieveSimpleIn reset(@Null Object value) {
+			this.value = value == null ? MaskedNull : value;
+			return this;
 		}
 
 		public NameIndex index(String... known) {
@@ -70,14 +116,47 @@ public class Codecs {
 		}
 
 		public At peek() {
-			return string != null && !consumed ? At.String : At.End;
+			return value != null ? At.String : At.End;
 		}
 
-		public String takeString() throws IOException {
-			//TODO TODO TODO
-			/*if (string)
-			return super.takeString();*/
-			return null;
+		public String takeString(){
+			return requireNonNull(value).toString();
+		}
+
+		public void takeNull() {
+			if (value != MaskedNull) throw new NoSuchElementException("is not null");
+		}
+
+		public boolean takeBoolean() {
+			return switch (value) {
+				case null -> throw new NullPointerException();
+				case Boolean b -> b;
+				default -> Boolean.parseBoolean(value.toString());
+			};
+		}
+
+		public double takeDouble() throws IOException {
+			return switch (value) {
+				case null -> throw new NullPointerException();
+				case Number n -> n.doubleValue();
+				default -> Double.parseDouble(value.toString());
+			};
+		}
+
+		public long takeLong() throws IOException {
+			return switch (value) {
+				case null -> throw new NullPointerException();
+				case Number n -> n.longValue();
+				default -> Long.parseLong(value.toString());
+			};
+		}
+
+		public int takeInt() throws IOException {
+			return switch (value) {
+				case null -> throw new NullPointerException();
+				case Number n -> n.intValue();
+				default -> Integer.parseInt(value.toString());
+			};
 		}
 	}
 
@@ -230,4 +309,6 @@ public class Codecs {
 			throw new UnsupportedOperationException();
 		}
 	}
+
+	private static final Object MaskedNull = new Object();
 }

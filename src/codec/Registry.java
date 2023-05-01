@@ -17,6 +17,15 @@ import static java.util.Objects.requireNonNull;
  * or will be needed, aside from any interceptors/proxies.
  */
 public class Registry implements Codec.Resolver {
+	/**
+	 * {@code Fallback} is a synthetic medium used to register fallback factories.
+	 * In all respects, it is an equivalent to {@link Medium#Any}
+	 */
+	private static final Medium<In, Out> Fallback = new Medium<>() {
+		public String toString() {
+			return Registry.class.getSimpleName() + ".Fallback";
+		}
+	};
 
 	private final Map<Class<?>, List<Entry>> factoriesByType;
 	private final List<Entry> factoriesCatchAll;
@@ -57,7 +66,7 @@ public class Registry implements Codec.Resolver {
 			"%s is only for registering/matchting codec factories, not for resolving codecs"
 				.formatted(Medium.Any));
 		// it is very important that we not only validated type for specific
-		// but also rewrapped all JVM provided reflected ParameterizedTypes to
+		// but also re-wrapped all JVM provided reflected ParameterizedTypes to
 		// our own implementation. JVM ones are never equal to custom implementations,
 		// so we cannot mix them in maps/sets etc.
 		type = requireSpecific(type);
@@ -69,6 +78,11 @@ public class Registry implements Codec.Resolver {
 				assert isRewrapped(t); // assert because these calls can be made by "indecent" codecs
 				@Null Codec<W, I, O> codec = resolve(t, medium, this);
 				if (codec != null) return codec;
+				// fallback codec used only to delegate from Codec.Lookup
+				// externally we will not resolve these
+				@SuppressWarnings("unchecked") // TODO explain safety
+				@Null Codec<W, I, O> fallbackCodec = resolve(t, (Medium<I, O>) Fallback, this);
+				if (fallbackCodec != null) return fallbackCodec;
 				throw new NoSuchElementException("No such codec for type " + t);
 			}
 		};
@@ -197,11 +211,6 @@ public class Registry implements Codec.Resolver {
 		}
 	}
 
-	public <T, I extends In, O extends Out>
-	Optional<Codec<T, I, O>> memoising(Type type, Medium<I, O> medium) {
-		return Optional.empty();
-	}
-
 	private static class Deferred<T, I extends In, O extends Out> extends Codec<T, I, O> {
 		private final Type type;
 		private @Null Lookup<I, O> lookup;
@@ -256,6 +265,10 @@ public class Registry implements Codec.Resolver {
 				(t, r, m, l) -> r == type ? codec : null,
 				Medium.Any, codec.classes()));
 			return this;
+		}
+
+		public Builder fallback(Codec.Factory<In, Out> factory) {
+			return add(factory, Fallback);
 		}
 
 		public Builder noBuiltin() {

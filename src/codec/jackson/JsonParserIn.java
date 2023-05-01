@@ -10,8 +10,7 @@ import com.fasterxml.jackson.databind.util.TokenBuffer;
 import static com.fasterxml.jackson.core.JsonTokenId.*;
 
 public final class JsonParserIn extends In {
-
-	private final JsonParser parser;
+	final JsonParser parser;
 
 	public JsonParserIn(JsonParser parser) {
 		this.parser = parser;
