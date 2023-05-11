@@ -7,7 +7,6 @@ import java.lang.reflect.*;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
-import static io.immutables.codec.record.RecordsFactory.metadata;
 
 final class SealedInterfaceCodec extends DefaultingCodec<Object, In, Out> {
 	private final Map<Class<?>, Codec<Object, In, Out>> subclassesCodecs = new HashMap<>();
@@ -32,7 +31,7 @@ final class SealedInterfaceCodec extends DefaultingCodec<Object, In, Out> {
 			subclassesCodecs.put(c, lookup.get(subtype));
 		}
 
-		this.reflectiveDefault = metadata.findReflectiveDefault(raw);
+		this.reflectiveDefault = Providers.metadata().findReflectiveDefault(raw);
 	}
 
 	private static void checkTypeParametersMatchExactly(
@@ -101,7 +100,7 @@ final class SealedInterfaceCodec extends DefaultingCodec<Object, In, Out> {
 
 	public @Null Object getDefault() {
 		return reflectiveDefault != null
-			? Reflect.constructValue(reflectiveDefault)
+			? ReflectRecords.constructValue(reflectiveDefault)
 			: null;
 	}
 

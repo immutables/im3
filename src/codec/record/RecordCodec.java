@@ -47,13 +47,13 @@ final class RecordCodec<T> extends CaseCodec<T, In, Out> implements Expecting {
 			componentAccessors[i] = c.getAccessor();
 
 			var codec = lookup.get(componentType);
-			if (RecordsFactory.metadata.isNullableComponent(c)) {
+			if (Providers.metadata().isNullableComponent(c)) {
 				codec = Codecs.nullSafe(codec);
 			}
 			componentCodecs[i] = codec;
 		}
 
-		canonicalConstructor = Reflect.getCanonicalConstructor(raw, componentRawTypes);
+		canonicalConstructor = ReflectRecords.getCanonicalConstructor(raw);
 	}
 
 	public boolean mayConform(In in) throws IOException {
@@ -96,7 +96,7 @@ final class RecordCodec<T> extends CaseCodec<T, In, Out> implements Expecting {
 
 		out.beginStruct(names);
 		for (int i = 0; i < length; i++) {
-			var value = Reflect.getValue(componentAccessors[i], instance);
+			var value = ReflectRecords.getValue(componentAccessors[i], instance);
 			var codec = componentCodecs[i];
 
 			if (codec instanceof DefaultingCodec<Object, In, Out> defaulting
@@ -153,12 +153,12 @@ final class RecordCodec<T> extends CaseCodec<T, In, Out> implements Expecting {
 			return null;
 		}
 
-		var instance = Reflect.newInstance(canonicalConstructor, componentValues);
+		var instance = ReflectRecords.newInstance(canonicalConstructor, componentValues);
 
 		return (T) instance;
 	}
 
-	public boolean canExpect(In.At first) {
+	public boolean expects(In.At first) {
 		return first == In.At.Struct;
 	}
 

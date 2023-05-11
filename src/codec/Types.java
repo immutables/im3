@@ -4,6 +4,7 @@ import io.immutables.meta.Null;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.lang.reflect.TypeVariable;
+import java.lang.reflect.WildcardType;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -77,6 +78,8 @@ public final class Types {
 		return switch (type) {
 			case Class<?> c -> c;
 			case ParameterizedType p -> (Class<?>) p.getRawType();
+			case TypeVariable<?> v -> toRawType(v.getBounds()[0]);
+			case WildcardType w -> toRawType(w.getUpperBounds()[0]);
 			default -> throw new IllegalArgumentException("No raw type for " + type);
 		};
 	}

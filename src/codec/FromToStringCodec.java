@@ -4,7 +4,7 @@ import io.immutables.meta.Null;
 import java.io.IOException;
 import java.util.function.Function;
 
-public abstract class StringCodec<T> extends DefaultingCodec<T, In, Out> implements Expecting {
+public abstract class FromToStringCodec<T> extends DefaultingCodec<T, In, Out> implements Expecting {
 	public abstract String toString(T instance);
 	public abstract T fromString(String string);
 
@@ -18,13 +18,13 @@ public abstract class StringCodec<T> extends DefaultingCodec<T, In, Out> impleme
 		return fromString(in.takeString());
 	}
 
-	public boolean canExpect(In.At first) {
+	public boolean expects(In.At first) {
 		return first == In.At.String;
 	}
 
-	public static <T> StringCodec<T> from(
+	public static <T> FromToStringCodec<T> from(
 		Function<T, String> toString, Function<String, T> fromString, Class<? extends T> type) {
-		return new StringCodec<T>() {
+		return new FromToStringCodec<>() {
 			public String toString(T instance) {
 				return toString.apply(instance);
 			}
@@ -38,7 +38,7 @@ public abstract class StringCodec<T> extends DefaultingCodec<T, In, Out> impleme
 			}
 
 			public String toString() {
-				return StringCodec.class.getSimpleName() + "<" + type.getTypeName() + ">";
+				return FromToStringCodec.class.getSimpleName() + "<" + type.getTypeName() + ">";
 			}
 		};
 	}
