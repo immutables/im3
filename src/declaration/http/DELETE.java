@@ -5,7 +5,7 @@ import java.lang.annotation.*;
 @Documented
 @Target(ElementType.METHOD)
 @Retention(RetentionPolicy.RUNTIME)
-public @interface GET {
+public @interface DELETE {
 	/** Extension path, can contain path & query parameters. */
 	String value() default "";
 }

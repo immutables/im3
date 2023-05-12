@@ -1,4 +1,4 @@
 package io.immutables.declaration.playground;
 
-record Lass(String asc) {
+public record Lass(String asc) {
 }
