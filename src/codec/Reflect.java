@@ -1,11 +1,10 @@
-package io.immutables.codec.record;
+package io.immutables.codec;
 
 import io.immutables.common.Unreachable;
 import java.lang.reflect.*;
-import java.util.Arrays;
 
-public final class ReflectRecords {
-	private ReflectRecords() {}
+public final class Reflect {
+	private Reflect() {}
 
 	public static Object newInstance(Constructor<?> constructor, Object... arguments) {
 		try {
@@ -37,7 +36,7 @@ public final class ReflectRecords {
 		}
 	}
 
-	static Object constructValue(Member constructorOrStaticMember) {
+	public static Object constructValue(Member constructorOrStaticMember) {
 		try {
 			if (constructorOrStaticMember instanceof Constructor<?> c) {
 				return c.newInstance();
@@ -60,7 +59,8 @@ public final class ReflectRecords {
 	}
 
 	public static Constructor<?> getCanonicalConstructor(Class<?> record) {
-		assert record.isRecord();
+		if (!record.isRecord()) throw new IllegalArgumentException(
+			"Must be a record class, but it is not: " + record.getTypeName());
 		RecordComponent[] components = record.getRecordComponents();
 		constructors: for (var c : record.getDeclaredConstructors()) {
 			var parameterTypes = c.getParameterTypes();

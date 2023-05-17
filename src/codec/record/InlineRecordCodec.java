@@ -20,18 +20,18 @@ final class InlineRecordCodec extends CaseCodec<Object, In, Out> implements Expe
 		var componentType = Types.resolveArguments(component.getGenericType(), arguments);
 
 		componentCodec = lookup.get(componentType);
-		canonicalConstructor = ReflectRecords.getCanonicalConstructor(raw);
+		canonicalConstructor = Reflect.getCanonicalConstructor(raw);
 		accessor = component.getAccessor();
 	}
 
 	public void encode(Out out, Object instance) throws IOException {
-		componentCodec.encode(out, ReflectRecords.getValue(accessor, instance));
+		componentCodec.encode(out, Reflect.getValue(accessor, instance));
 	}
 
 	public @Null Object decode(In in) throws IOException {
 		@Null Object decode = componentCodec.decode(in);
 		if (in.wasInstanceFailed()) return null;
-		return ReflectRecords.newInstance(canonicalConstructor, decode);
+		return Reflect.newInstance(canonicalConstructor, decode);
 	}
 
 	public boolean mayConform(In in) throws IOException {

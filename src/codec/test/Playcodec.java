@@ -24,6 +24,7 @@ sealed interface Abc {
 	record B() implements Abc {}
 }
 
+@Deprecated
 public class Playcodec {
 
 

@@ -49,7 +49,7 @@ final class ProductRecordCodec<T> extends CaseCodec<T, In, Out> implements Expec
 			componentCodecs[i] = codec;
 		}
 
-		canonicalConstructor = ReflectRecords.getCanonicalConstructor(raw);
+		canonicalConstructor = Reflect.getCanonicalConstructor(raw);
 	}
 
 	public boolean mayConform(In in) throws IOException {
@@ -85,7 +85,7 @@ final class ProductRecordCodec<T> extends CaseCodec<T, In, Out> implements Expec
 
 		out.beginArray();
 		for (int i = 0; i < length; i++) {
-			var value = ReflectRecords.getValue(componentAccessors[i], instance);
+			var value = Reflect.getValue(componentAccessors[i], instance);
 			componentCodecs[i].encode(out, value);
 		}
 		out.endArray();
@@ -124,7 +124,7 @@ final class ProductRecordCodec<T> extends CaseCodec<T, In, Out> implements Expec
 			return null;
 		}
 
-		var instance = ReflectRecords.newInstance(canonicalConstructor, componentValues);
+		var instance = Reflect.newInstance(canonicalConstructor, componentValues);
 
 		return (T) instance;
 	}

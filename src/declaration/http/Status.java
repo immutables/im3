@@ -10,7 +10,7 @@ import java.lang.annotation.*;
  */
 @Documented
 @Retention(RetentionPolicy.RUNTIME)
-@Target({ElementType.TYPE, ElementType.METHOD})
+@Target({ElementType.TYPE, ElementType.TYPE_USE})
 public @interface Status {
 	/** HTTP status code value. */
 	int value();

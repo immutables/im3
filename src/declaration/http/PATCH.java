@@ -6,7 +6,7 @@ import java.lang.annotation.*;
 @Inherited
 @Target(ElementType.METHOD)
 @Retention(RetentionPolicy.RUNTIME)
-public @interface DELETE {
+public @interface PATCH {
 	/** Extension path, can contain path & query parameters. */
 	String value() default "";
 }

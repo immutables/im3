@@ -5,8 +5,8 @@ import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.lang.reflect.TypeVariable;
 import java.lang.reflect.WildcardType;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
+import static java.util.Objects.requireNonNull;
 
 public final class Types {
 	private Types() {}
@@ -31,6 +31,14 @@ public final class Types {
 			"a type cannot contain non-specific types. But contained " + type);
 
 		return rewrapParameterized(type);
+	}
+
+	public static Type[] requireSpecific(Type[] types) {
+		types = types.clone();
+		for (int i = 0; i < types.length; i++) {
+			types[i] = requireSpecific(types[i]);
+		}
+		return types;
 	}
 
 	public static ParameterizedType newParameterized(Class<?> raw, Type... arguments) {
@@ -84,6 +92,18 @@ public final class Types {
 		};
 	}
 
+	public static Map<TypeVariable<?>, Type> mapArgumentsInHierarchy(Class<?> raw) {
+		return mapArgumentsInHierarchy(raw, Map.of());
+	}
+
+	public static Map<TypeVariable<?>, Type> mapArgumentsInHierarchy(
+		Class<?> raw, Map<? extends TypeVariable<?>, ? extends Type> initial) {
+		var resolution = new HierarchyTypeVariableMapper();
+		resolution.variables.putAll(initial);
+		resolution.collect(raw);
+		return resolution.variables;
+	}
+
 	public static Map<TypeVariable<?>, Type> mapArguments(Class<?> raw, Type type) {
 		if (type instanceof ParameterizedType p) {
 			var arguments = p.getActualTypeArguments();
@@ -101,14 +121,20 @@ public final class Types {
 		} else if (raw.equals(type)) {
 			assert raw.getTypeParameters().length == 0;
 			return Map.of();
-		} else throw new AssertionError("Unsupported type: " + type);
+		} else throw new IllegalArgumentException("Unsupported type kind: " + type);
 	}
 
-	private record AppliedType(Class<?> raw, Type[] arguments)
-		implements ParameterizedType {
+	private static final class AppliedType implements ParameterizedType {
+		final Class<?> raw;
+		final Type[] arguments;
+
+		private AppliedType(Class<?> raw, Type[] arguments) {
+			this.raw = requireNonNull(raw);
+			this.arguments = requireNonNull(arguments);
+		}
 
 		public Type[] getActualTypeArguments() {
-			return arguments;
+			return arguments.clone();
 		}
 
 		public Type getRawType() {
@@ -118,12 +144,41 @@ public final class Types {
 		public @Null Type getOwnerType() {
 			return null;
 		}
+
+		public Class<?> raw() {return raw;}
+
+		public Type[] arguments() {return arguments;}
+
+		@Override
+		public String toString() {
+			var a = Arrays.toString(arguments);// then cut off square brackets
+			return raw.getName() + '<' + a.substring(0, a.length() - 1) + '>';
+		}
+
+		@Override
+		public boolean equals(Object obj) {
+			return obj == this || (obj instanceof AppliedType a
+				&& raw == a.raw
+				&& Arrays.equals(arguments, a.arguments));
+		}
+
+		@Override
+		public int hashCode() {
+			return Objects.hash((Object[]) arguments) * 31 + raw.hashCode();
+		}
+	}
+
+	public static Type[] resolveArguments(Type[] types, Map<TypeVariable<?>, Type> variables) {
+		types = types.clone();
+		for (int i = 0; i < types.length; i++) {
+			types[i] = resolveArguments(types[i], variables);
+		}
+		return types;
 	}
 
 	public static Type resolveArguments(Type type, Map<TypeVariable<?>, Type> variables) {
-		if (type instanceof Class<?>) {
-			return type;
-		}
+		if (type instanceof Class<?>) return type;
+
 		if (type instanceof ParameterizedType p) {
 			// this array is always expected as a clone, never original
 			Type[] arguments = p.getActualTypeArguments();
@@ -132,11 +187,12 @@ public final class Types {
 			}
 			return new AppliedType((Class<?>) p.getRawType(), arguments);
 		}
+
 		if (type instanceof TypeVariable<?> v) {
 			@Null Type substitution = variables.get(v);
 			if (substitution == null) throw new IllegalArgumentException(
-				("Must have all variables substituted! Missing %s occurring in %s " +
-					"where substitutions are %s").formatted(v, type, variables));
+				("Must have all variables substituted! Missing %s occurs in %s " +
+					"where existing substitutions: %s").formatted(v, type.getTypeName(), variables));
 
 			if (assertionsEnabled) try {
 				requireSpecific(substitution);
@@ -148,6 +204,45 @@ public final class Types {
 		}
 		throw new IllegalArgumentException("Unsupported type: " + type);
 		// TODO not sure if it's a good idea, need to see bigger picture
+	}
+
+	// This is limited only to extracting type resolution started with fully specific
+	private static final class HierarchyTypeVariableMapper {
+		final Map<TypeVariable<?>, Type> variables = new HashMap<>();
+		private final Set<Class<?>> seen = new HashSet<>();
+
+		void collect(Class<?> raw) {
+			collect(raw, raw);
+		}
+
+		void collect(Class<?> raw, Type type) {
+			// just to make it more resilient for future changes
+			if (raw == Object.class) return;
+
+			if (seen.add(raw)) {
+				var arguments = mapArguments(raw, type);
+				variables.putAll(arguments);
+
+				@Null Type superClass = raw.getGenericSuperclass();
+				if (superClass != null) {
+					collect(toRawType(superClass),
+						resolveArguments(superClass, variables));
+				}
+
+				for (Type superInterface : raw.getGenericInterfaces()) {
+					collect(toRawType(superInterface),
+						resolveArguments(superInterface, variables));
+				}
+			} else if (assertionsEnabled) {
+				// if assertions enabled we just recheck that resolved variables
+				// table contains the same resolved arguments for the type definition
+				for (var e : mapArguments(raw, type).entrySet()) {
+					var variable = e.getKey();
+					var argument = e.getValue();
+					assert argument.equals(variables.get(variable));
+				}
+			}
+		}
 	}
 
 	private static final boolean assertionsEnabled = Types.class.desiredAssertionStatus();

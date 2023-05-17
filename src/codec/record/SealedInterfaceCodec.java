@@ -100,7 +100,7 @@ final class SealedInterfaceCodec extends DefaultingCodec<Object, In, Out> {
 
 	public @Null Object getDefault() {
 		return reflectiveDefault != null
-			? ReflectRecords.constructValue(reflectiveDefault)
+			? Reflect.constructValue(reflectiveDefault)
 			: null;
 	}
 
