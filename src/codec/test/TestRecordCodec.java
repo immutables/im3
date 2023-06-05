@@ -1,7 +1,7 @@
 package io.immutables.codec.test;
 
 import io.immutables.codec.*;
-import io.immutables.codec.record.Inline;
+import io.immutables.meta.Inline;
 import io.immutables.codec.record.RecordsFactory;
 import java.io.IOException;
 import java.util.List;

@@ -117,7 +117,7 @@ interface Idea {
 			// Absence of 'require' for processor module in module-info.java
 			// will shield from processor classes being imported/auto-completed
 			addDependency(dependencies,
-				new Dependency(p.name(), true, Dependencies.get(p.name())),
+				new Dependency(p.name(), true, Dependencies.get(p.name(), m.moduleInfo())),
 				DependencyScope.PROVIDED);
 		}
 
@@ -279,6 +279,7 @@ interface Idea {
 			annotationProfiles.append("""
 							<profile name="[ijname]" enabled="true">
 								<module name="[ijname]" />
+								[options]
 								<sourceOutputDir name="_annotations" />
 								<sourceTestOutputDir name="_test_annotations" />
 								<outputRelativeToContentRoot value="false" />
@@ -288,9 +289,10 @@ interface Idea {
 							</profile>
 				"""
 				.replace("[ijname]", ijname(m))
+				.replace("[options]", options(m))
 				.replace("[processors]", processors.stream().flatMap(p -> {
 						var b = Stream.<ProvidingModule>builder()
-							.add(Dependencies.get(p.name()));
+							.add(Dependencies.get(p.name(), m.moduleInfo()));
 						for (var d : Dependencies.dependenciesOf(p.name())) {
 							if (!d.isStatic()) b.add(d.module());
 						}
@@ -304,6 +306,28 @@ interface Idea {
 		return s
 			.replace("[annotationProfiles]", annotationProfiles)
 			.replace("[javacOptions]", ""/* moduleOptions */);
+	}
+
+	static CharSequence options(SourceModule m) {
+		var builder = new StringBuilder();
+		for (var option : m.moduleInfo().options()) {
+			int atAssignedValue = option.indexOf('=');
+			String key;
+			String value;
+			if (atAssignedValue >= 0) {
+				key = option.substring(0, atAssignedValue);
+				value = option.substring(atAssignedValue + 1);
+			} else {
+				key = option;
+				value = "";
+			}
+			// no xml escape, hope for the better
+			builder.append("<option name=\"")
+				.append(key)
+				.append("\" value =\"")
+				.append(value).append("\" />\n					");
+		}
+		return builder;
 	}
 
 	private static CharSequence javacOptions(SourceModule m) {
@@ -320,13 +344,17 @@ interface Idea {
 		//options.append(" -d ").append(classesOutputOf(m));
 		options.append(" -s ").append(annotationsOutput);
 
+/*	for (var argument : m.moduleInfo().arguments()) {
+			System.out.println("AA!!!  " + argument);
+			options.append(" -A").append(argument);
+		}*/
 		//options.append(" --module ").append(m.name());
 
-		/*options.append(" -sourcepath ").append(m.dir());
-*/
+		//options.append(" -sourcepath ").append(m.dir());
+
 		if (hasGenerated(m)) {
 			var path = m.moduleInfo().processors().stream()
-				.map(p -> compiledModulePath(Dependencies.get(p.name())).toString())
+				.map(p -> compiledModulePath(Dependencies.get(p.name(), m.moduleInfo())).toString())
 				.collect(joining(":", "'", "'"));
 
 			options.append(" --processor-module-path ").append(path);

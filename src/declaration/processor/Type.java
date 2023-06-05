@@ -1,43 +1,47 @@
 package io.immutables.declaration.processor;
 
-import io.immutables.common.Vect;
+import java.util.List;
+import javax.lang.model.type.TypeMirror;
 
-sealed interface Type {
+public sealed interface Type {
+
 	enum Primitive implements Type {
 		Null,
 		Boolean,
 		Integer,
 		Long,
 		Float,
-		String
+		String,
+		Void
 	}
 
-	/** This is made to have an object identity, no equals / hashCode - on purpose. */
-	final class Variable implements Type {
-		final String name;
-
-		Variable(String name) {
-			this.name = name;
-		}
-	}
+	record Variable(int variable, String name) implements Type {}
 
 	record Terminal(
-		Declaration declaration
-	) implements Type {
+		Declaration.Reference terminal
+	) implements Type {}
 
-		public Terminal {
-			assert declaration.parameters().isEmpty();
+	record Container(Kind container, Type element) implements Type {
+
+		public enum Kind {
+			Nullable,
+			Optional,
+			// Temporary hack before we find out the way to align
+			// OptionalInt and Optional<Integer> :: Optional<T> where T : Integer
+			OptionalPrimitive,
+			List,
+			Set,
 		}
 	}
 
 	record Applied(
-		Declaration declaration,
-		Vect<Type> arguments
-	) implements Type {
+		Declaration.Reference applies,
+		List<Type> arguments
+	) implements Type {}
 
-		public Applied {
-			assert !arguments.isEmpty();
-			assert declaration.parameters().size() == arguments.size();
+	record Mirror(TypeMirror mirror) implements Type {
+		public String toString() {
+			return mirror.toString();
 		}
 	}
 }

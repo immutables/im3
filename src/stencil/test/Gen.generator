@@ -1,0 +1,23 @@
+[import
+	java.util.Collection.*
+]
+
+[generate()]
+[-- Such a comment ]
+Gen1[a]dbb[nnn]
+[/]
+
+[a()]
+a
+[/]
+
+[name(int a, String b)]
+[let hu]NGA\[R\][b][/let]
+Line1
+	[if a]Template
+	[else][ex?]Eradicate[:][ex][/]
+	[/if]
+
+	[for c : c.c.c, if c, g = 1] [runi(_)][g][/]  [/]
+Line2
+[/name]

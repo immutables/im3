@@ -4,6 +4,7 @@ import io.immutables.meta.Null;
 import java.io.Writer;
 import java.nio.CharBuffer;
 import java.util.Arrays;
+import java.util.Objects;
 import static java.util.Objects.checkFromToIndex;
 import static java.util.Objects.checkIndex;
 
@@ -21,12 +22,12 @@ public interface Source {
 			this.position = position;
 			this.line = line;
 			this.column = column;
-			assert position >= 0 : "position is not [0..): " + position;
-			assert line >= 1 : "line is not [1..): " + line;
-			assert column >= 1 : "column is not [1..) " + column;
 		}
 
 		public static Position of(int position, int line, int column) {
+			if (position < 0) throw new IllegalArgumentException("position is not [0..): " + position);
+			if (line < 1) throw new IllegalArgumentException("line is not [1..): " + line);
+			if (column < 1) throw new IllegalArgumentException("column is not [1..) " + column);
 			return new Position(position, line, column);
 		}
 
@@ -46,11 +47,10 @@ public interface Source {
 
 		@Override
 		public boolean equals(@Null Object another) {
-			if (!(another instanceof Position)) return false;
-			var obj = (Position) another;
-			return position == obj.position
-					&& line == obj.line
-					&& column == obj.column;
+			return another instanceof Position p
+					&& position == p.position
+					&& line == p.line
+					&& column == p.column;
 		}
 	}
 

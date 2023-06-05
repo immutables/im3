@@ -23,6 +23,7 @@ interface Ver {
 	String Jmh = "1.36";
 	String Jackson = "2.14.2";
 	String Guava = "31.1-jre";
+	String Spring = "6.0.9";
 }
 
 interface Build {
@@ -56,6 +57,9 @@ interface Build {
 		);
 		module("com.google.common", a -> a
 			.classes("com.google.guava:guava", Ver.Guava)
+		);
+		module("spring.web", a -> a
+			.classes("org.springframework:spring-web", Ver.Spring)
 		);
 
 		vendor();

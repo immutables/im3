@@ -55,8 +55,11 @@ public class Sources {
 	private static void readModule(Path file, Path searchPath)
 		throws IOException, MalformedModuleException {
 
-		var moduleInfo = Jms.parseModuleInfo(file);
 		var dir = file.getParent();
+
+		var projectDir = Path.of(".").toAbsolutePath();
+		var moduleDir = dir.toAbsolutePath();
+		var moduleInfo = Jms.parseModuleInfo(file, moduleDir, projectDir);
 
 		modules.add(new SourceModule(dir, searchPath.relativize(dir), moduleInfo));
 	}

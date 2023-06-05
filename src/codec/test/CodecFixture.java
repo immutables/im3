@@ -5,15 +5,12 @@ import io.immutables.codec.In;
 import io.immutables.codec.Out;
 import io.immutables.codec.jackson.JsonGeneratorOut;
 import io.immutables.codec.jackson.JsonParserIn;
-import io.immutables.meta.Null;
 import io.immutables.that.Assert;
 import java.io.IOException;
 import java.io.StringWriter;
-import java.util.Objects;
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonFactoryBuilder;
 import com.fasterxml.jackson.core.json.JsonReadFeature;
-import com.fasterxml.jackson.core.json.JsonWriteContext;
 import com.fasterxml.jackson.core.json.JsonWriteFeature;
 
 public abstract class CodecFixture {

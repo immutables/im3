@@ -12,7 +12,8 @@ record ModuleInfo(
 	String name,
 	boolean open,
 	List<Require> requires,
-	List<Processor> processors) {
+	List<Processor> processors,
+	List<String> options) {
 
 	record Require(String name, boolean isStatic, boolean isTransitive) {}
 
@@ -57,11 +58,20 @@ public interface Jms {
 		+ "@processor\\s+"
 		+ "(?<module>[a-zA-Z0-9._]+)\\s*");
 
-	static ModuleInfo parseModuleInfo(Path file) throws IOException, MalformedModuleException {
+	Pattern Option = Pattern.compile("^\\s*"
+		+ "(?://\\s*)?"
+		+ "(?:[*]\\s*)?"
+		+ "@option\\s+"
+		+ "(?<option>\\S+)\\s*");
+
+	static ModuleInfo parseModuleInfo(Path file, Path moduleDir, Path projectDir)
+		throws IOException, MalformedModuleException {
+
 		boolean open = false;
 		String module = "";
 		var requires = new ArrayList<ModuleInfo.Require>();
 		var processors = new ArrayList<ModuleInfo.Processor>();
+		var options = new ArrayList<String>();
 
 		for (var line : Files.readAllLines(file)) {
 			Matcher m;
@@ -91,17 +101,24 @@ public interface Jms {
 				continue;
 			}
 
+			m = Option.matcher(line);
+			if (m.matches()) {
+				var argument = m.group("option")
+					.replace("[project.dir]", projectDir.toString())
+					.replace("[module.dir]", moduleDir.toString())
+					.replace("\\[","[") // good manners to allow escapes if we use them
+					.replace("\\]","]");
+
+				options.add(argument);
+				continue;
+			}
 			// no need for now
 			//if (LineComment.matcher(line).matches()) continue;
 		}
 
 		if (module.isEmpty()) throw new MalformedModuleException("No module name", file);
 
-		return new ModuleInfo(module, open, List.copyOf(requires), List.copyOf(processors));
+		return new ModuleInfo(module, open,
+			List.copyOf(requires), List.copyOf(processors), List.copyOf(options));
 	}
-/*
-	static void main(String[] args) throws IOException, MalformedModuleException {
-		var file = "/Users/Shared/Git/immutaverse/src/common/_test/module-info.java";
-		System.out.println(Jms.parseModuleInfo(Path.of(file)));
-	}*/
 }

@@ -1,8 +1,13 @@
 package io.immutables.declaration.processor;
 
-import io.immutables.meta.Null;
+import io.immutables.declaration.Exclude;
+import io.immutables.declaration.http.Path;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import javax.annotation.processing.ProcessingEnvironment;
-import javax.lang.model.element.AnnotationMirror;
+import javax.lang.model.AnnotatedConstruct;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.Modifier;
 import javax.lang.model.element.TypeElement;
@@ -10,80 +15,47 @@ import javax.tools.Diagnostic;
 
 class InventoryDiscoverer {
 	private final ProcessingEnvironment processing;
-	private final Element inventoryPackage;
+	private final ContractIntrospector contracts;
 
-	InventoryDiscoverer(ProcessingEnvironment processing, Element inventoryPackage) {
+	private final DatatypeIntrospector datatypes;
+
+	final Map<AnnotatedConstruct, KnownAnnotations> annotationsCache = new HashMap<>();
+
+	InventoryDiscoverer(ProcessingEnvironment processing) {
 		this.processing = processing;
-		this.inventoryPackage = inventoryPackage;
+		this.datatypes = new DatatypeIntrospector(processing, annotationsCache);
+		this.contracts = new ContractIntrospector(processing, datatypes, annotationsCache);
 	}
 
-	void discover() {
+	List<Declaration> discover(Element inventoryPackage) {
+		var declarations = new ArrayList<Declaration>();
+
 		for (var element : inventoryPackage.getEnclosedElements()) {
-			if (excluded(element)) continue;
+			var annotations = annotationsCache.computeIfAbsent(element, KnownAnnotations::from);
 
-			var kind = element.getKind();
-			switch (kind) {
-			case ENUM -> datatypeEnum((TypeElement) element);
-			case RECORD -> datatypeRecord((TypeElement) element);
-			case INTERFACE -> {
-				var type = (TypeElement) element;
-				if (isContractKind(type)) {
-					contractInterface(type);
-				} else if (type.getModifiers().contains(Modifier.SEALED)) {
-					datatypeSealedInterface(type);
-				} else {
-					// can also be mixin interface, we don't consider it as a problem,
-					// and we don't process it either
+			if (annotations.has(Exclude.class)) continue;
+
+			switch (element.getKind()) {
+				case ENUM, RECORD -> {
+					var type = (TypeElement) element;
+					datatypes.introspect(type).ifPresent(declarations::add);
 				}
-			}
-			default -> processing.getMessager().printMessage(Diagnostic.Kind.ERROR,
-				"Not supported element of kind: " + kind, element);
-			}
-		}
-	}
-
-	private static boolean isContractKind(TypeElement type) {
-		return findAnnotation(type, ANNOTATION_HTTP_PATH) != null;
-	}
-
-	private void contractInterface(TypeElement type) {
-		processing.getMessager().printMessage(Diagnostic.Kind.MANDATORY_WARNING,
-			"Found contract " + type.getSimpleName(), type);
-	}
-
-	private void datatypeRecord(TypeElement type) {
-		//ElementFilter.recordComponentsIn(element.getEnclosedElements())
-
-		processing.getMessager().printMessage(Diagnostic.Kind.MANDATORY_WARNING,
-			"Found record " + type.getSimpleName(), type);
-	}
-
-	private void datatypeSealedInterface(TypeElement type) {
-
-		processing.getMessager().printMessage(Diagnostic.Kind.MANDATORY_WARNING,
-			"Found sealed " + type.getSimpleName(), type);
-	}
-
-	private void datatypeEnum(TypeElement type) {
-		processing.getMessager().printMessage(Diagnostic.Kind.MANDATORY_WARNING,
-			"Found enum " + type.getSimpleName(), type);
-	}
-
-	private boolean excluded(Element element) {
-		return findAnnotation(element, ANNOTATION_EXCLUDE) != null;
-	}
-
-	private static @Null AnnotationMirror findAnnotation(Element element, String annotationType) {
-		for (var annotation : element.getAnnotationMirrors()) {
-			var typeElement = (TypeElement) annotation.getAnnotationType().asElement();
-			if (typeElement.getQualifiedName().contentEquals(annotationType)) {
-				return annotation;
+				case INTERFACE -> {
+					var type = (TypeElement) element;
+					if (annotations.has(Path.class)) {
+						contracts.introspect(type).ifPresent(declarations::add);
+					} else if (type.getModifiers().contains(Modifier.SEALED)) {
+						datatypes.introspect(type).ifPresent(declarations::add);
+					} else {
+						// can also be mixin interface, we don't consider it as a problem,
+						// and we don't process it either
+					}
+				}
+				default -> processing.getMessager().printMessage(Diagnostic.Kind.ERROR,
+					"Not supported element of container: " + element.getKind(), element);
 			}
 		}
-		return null;
-	}
 
-	public static final String ANNOTATION_EXCLUDE = "io.immutables.declaration.Exclude";
-	public static final String ANNOTATION_HTTP_PATH = "io.immutables.declaration.http.Path";
-	//public static final String ANNOTATION_EXCLUDE = "io.immutables.declaration.Exclude";
+		return declarations;
+	}
 }

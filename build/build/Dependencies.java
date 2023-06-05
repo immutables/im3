@@ -12,8 +12,12 @@ class Dependencies {
 	static final Map<String, ProvidingModule> definitions = new HashMap<>();
 	static final Map<String, Map<String, Dependency>> dependencies = new HashMap<>();
 
-	static ProvidingModule get(String name) {
-		return Objects.requireNonNull(definitions.get(name));
+	static ProvidingModule get(String name, ModuleInfo forModule) {
+		var module = definitions.get(name);
+		if (module != null) return module;
+
+		throw new NoSuchElementException(
+			"Dependency module '%s' cannot be found for '%s'".formatted(name, forModule.name()));
 	}
 
 	static Collection<Dependency> dependenciesOf(SourceModule module) {

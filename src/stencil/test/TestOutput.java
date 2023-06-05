@@ -1,6 +1,6 @@
-package io.immutables.common.test;
+package io.immutables.stencil.test;
 
-import io.immutables.common.Output;
+import io.immutables.stencil.Output;
 import java.io.IOException;
 import java.io.StringWriter;
 import org.junit.Test;
@@ -10,11 +10,10 @@ public class TestOutput {
 	@Test public void output() throws IOException {
 		var w = new StringWriter();
 
-		var o = new Output(w);
+		var o = new Output();
 		o.put('_').ln();
 
-		char[] atuChars = "atu".toCharArray();
-		o.raw(atuChars, 0, 1);
+		o.raw.append("atu", 0, 1);
 
 		o.indents = 2;
 		o.put("b", "c").ln();
@@ -25,7 +24,7 @@ public class TestOutput {
 		that(w.toString()).is("""
 			_
 			abc
-			    xyz
+			  xyz
 			%#@
 			""");
 	}

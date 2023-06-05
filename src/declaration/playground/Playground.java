@@ -5,11 +5,21 @@ import io.immutables.declaration.http.ClientException.NotFound;
 import io.immutables.declaration.http.POST;
 import io.immutables.declaration.http.Path;
 
-@Path("X")
+@Path("/x")
 public interface Playground {
+	/**
+	 * Documentation on insert
+	 * is quite good one
+	 * per se
+	 * @param value on param value
+	 */
 	@POST
 	void insert(String value);
 
-	@GET
-	Lass get() throws NotFound;
+	/**
+	 * Another example
+	 * @param x on param x
+	 */
+	@GET("?abc={x}")
+	Lass get(String x) throws NotFound;
 }
