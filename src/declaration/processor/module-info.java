@@ -8,7 +8,6 @@ module io.immutables.declaration.processor {
 	requires io.immutables.meta;
 	requires io.immutables.declaration;
 
-	requires io.immutables.common;
 	requires io.immutables.stencil;
 	requires io.immutables.stencil.template;
 	//	requires io.immutables.codec;

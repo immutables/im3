@@ -40,14 +40,12 @@ public class Processor extends AbstractProcessor {
 		} else {
 			try {
 				var inventoryPackages = round.getElementsAnnotatedWith(ServiceInventory.class);
-				var endpoints = Current.use(current, SpringMvcInterfaces::new);
-				var endpoints2 = Current.use(current, SpringMvcs_generator::new);
+				var endpoints = Current.use(current, SpringMvcs_generator::new);
 
 				for (var p : inventoryPackages) {
 					var declarations = discoverer.discover(p);
 
 					endpoints.generate(declarations);
-					endpoints2.generate(declarations);
 				}
 			} catch (Throwable e) {
 				processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR,

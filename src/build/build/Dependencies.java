@@ -1,18 +1,40 @@
-package build;
+// Copyright 2023 Immutables Authors and Contributors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//   http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
+package io.immutables.build.build;
 
 import java.util.*;
+import java.util.stream.Collectors;
+import static java.util.stream.Collectors.toUnmodifiableSet;
 
-record Dependency(String name, boolean isStatic, ProvidingModule module) {}
-
-class Dependencies {
+public class Dependencies {
 	static final Set<String> reservedJdkModules = Set.of(
 		"java.base",
-		"java.compiler");
+		"java.sql",
+		"java.compiler",
+		"java.net.http");
 
 	static final Map<String, ProvidingModule> definitions = new HashMap<>();
 	static final Map<String, Map<String, Dependency>> dependencies = new HashMap<>();
 
-	static ProvidingModule get(String name, ModuleInfo forModule) {
+	public static ProvidingModule get(String name) {
+		var module = definitions.get(name);
+		if (module != null) return module;
+		throw new NoSuchElementException("No module named '" + name + "'");
+	}
+
+	public static ProvidingModule get(String name, ModuleInfo forModule) {
 		var module = definitions.get(name);
 		if (module != null) return module;
 
@@ -20,16 +42,31 @@ class Dependencies {
 			"Dependency module '%s' cannot be found for '%s'".formatted(name, forModule.name()));
 	}
 
-	static Collection<Dependency> dependenciesOf(SourceModule module) {
+	public static Set<ProvidingModule> nestedOf(String name) {
+		var prefix = name + ".";
+		return switch (get(name)) {
+			case SourceModule s -> definitions.values()
+				.stream()
+				.filter(m -> m.name().startsWith(prefix))
+				.collect(toUnmodifiableSet());
+			default -> Set.of();
+		};
+	}
+
+	public static Collection<ProvidingModule> nestedOf(SourceModule module) {
+		return nestedOf(module.name());
+	}
+
+	public static Collection<Dependency> dependenciesOf(SourceModule module) {
 		var name = module.moduleInfo().name();
 		return dependenciesOf(name);
 	}
 
-	static Collection<Dependency> dependenciesOf(String name) {
+	public static Collection<Dependency> dependenciesOf(String name) {
 		return dependencies.getOrDefault(name, Map.of()).values();
 	}
 
-	static void resolve() {
+	public static void resolve() {
 		// don't care about duplicates etc
 		for (var v : Vendored.modules) definitions.put(v.name(), v);
 		for (var s : Sources.modules) definitions.put(s.name(), s);

@@ -13,6 +13,10 @@ public abstract class Template extends Stencil {
 		out().put(Literals.string(stringify(value)));
 	}
 
+	protected void print(Object value) {
+		System.err.print(stringify(value));
+	}
+
 	protected static Iterable<Integer> range(int to) {
 		return IntStream.range(0, to).boxed()::iterator;
 	}

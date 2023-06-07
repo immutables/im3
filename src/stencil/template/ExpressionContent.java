@@ -12,10 +12,20 @@ import javax.lang.model.SourceVersion;
 class ExpressionContent {
 	private final List<String> literals;
 	private final StringBuilder expression;
+	private final List<String> locals = new ArrayList<>();
 
 	ExpressionContent(CharSequence expression, List<String> literals) {
 		this.literals = literals;
 		this.expression = extractLiterals(expression);
+	}
+
+	static ExpressionContent binding(CharSequence expression, List<String> literals) {
+		var e = new ExpressionContent(expression, literals);
+		var m = bindingVariable.matcher(expression);
+		if (m.find()) {
+			e.locals.add(m.group(1));
+		}
+		return e;
 	}
 
 	private String replaceLiteral(CharSequence literal) {
@@ -59,6 +69,7 @@ class ExpressionContent {
 
 	StringBuilder expand(LocalScope scope) {
 		// order matters - so there is no bad mix-ups
+		for (var v : locals) scope.declare(v);
 		var expansion = expandCasts(scope);
 		expansion = expandAccessors(expansion, scope::hasLocal);
 		expansion = expandLiterals(expansion, literals);
@@ -164,6 +175,9 @@ class ExpressionContent {
 	// consecutive hashes #
 	private static final Pattern iterationCounters = Pattern.compile(
 		"(#)+");
+
+	private static final Pattern bindingVariable = Pattern.compile(
+		"\\s+(\\b[_a-z][_a-zA-Z0-9]*)\\s*$");
 
 	@Override public String toString() {
 		return expression.toString();

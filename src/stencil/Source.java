@@ -1,10 +1,9 @@
-package io.immutables.common;
+package io.immutables.stencil;
 
 import io.immutables.meta.Null;
 import java.io.Writer;
 import java.nio.CharBuffer;
 import java.util.Arrays;
-import java.util.Objects;
 import static java.util.Objects.checkFromToIndex;
 import static java.util.Objects.checkIndex;
 
@@ -134,7 +133,7 @@ public interface Source {
 			for (int m = 10, i = 1; m >= 10; m *= 10, i++) {
 				if (size / m == 0) return i;
 			}
-			throw Unreachable.wishful();
+			throw new AssertionError();
 		}
 
 		private CharSequence getLine(int lineNumber) {

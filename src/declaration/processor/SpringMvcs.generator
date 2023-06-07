@@ -5,14 +5,14 @@
 
 [generate(List<Declaration> declarations)]
 	[for d : declarations, if d::<Contract c>]
-		[sources.inPackage(c.module, ".mvc2").name(c.name).java _]
+		[sources.inPackage(c.module, ".mvc").name(c.name).java _]
 [contractInterface(c)]
 		[/]
 	[/for]
 [/]
 
 [contractInterface(Contract c)]
-package [c.module].mvc2.[c.name];
+package [c.module].mvc.[c.name];
 
 import org.springframework.web.bind.annotation.*;
 
@@ -33,11 +33,11 @@ public interface [c.name] extends [c.module].[c.name] {
  */
 @java.lang.Override
 @ResponseBody
-[mappingAnnotation(op)]
+@[mapp(op.method)]Mapping("[pathOf(op)]")
 [op.returns.type] [op.name](
-	[for p : op.parameters][if #],
-	[/][operationParameter(p)][/for])[if op.thrown]
-	throws [for t : op.thrown][if #], [/][t.type][//];
+	[for p : op.parameters][#?],
+	[/][operationParameter(p)][/for])[op.thrown?]
+	throws [for t : op.thrown][#?], [/][t.type][//];
 [/]
 
 [operationParameter(Parameter p)][void]
@@ -47,7 +47,3 @@ public interface [c.name] extends [c.module].[c.name] {
 	[Body ->]@RequestBody [/]
 [/case]
 [/void][p.type] [p.name][/]
-
-[mappingAnnotation(Operation op)]
-@[mapp(op.method)]Mapping("[pathOf(op)]")
-[/]

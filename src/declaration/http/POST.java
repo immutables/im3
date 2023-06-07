@@ -7,6 +7,6 @@ import java.lang.annotation.*;
 @Target(ElementType.METHOD)
 @Retention(RetentionPolicy.RUNTIME)
 public @interface POST {
-	/** Extension path, can contain path & query parameters. */
+	/** Extension path, can contain path and query parameters. */
 	String value() default "";
 }

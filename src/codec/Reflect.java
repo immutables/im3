@@ -1,6 +1,5 @@
 package io.immutables.codec;
 
-import io.immutables.common.Unreachable;
 import java.lang.reflect.*;
 
 public final class Reflect {
@@ -74,6 +73,7 @@ public final class Reflect {
 				return c;
 			}
 		}
-		throw Unreachable.contractual();
+		throw new AssertionError(
+			"Record must have cannonical constructor compiled: " + record);
 	}
 }

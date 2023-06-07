@@ -2,7 +2,6 @@ package io.immutables.regres.coding;
 
 import io.immutables.codec.In;
 import io.immutables.codec.NameIndex;
-import io.immutables.common.Unreachable;
 import io.immutables.meta.Null;
 import java.io.IOException;
 import java.sql.ResultSet;
@@ -133,7 +132,7 @@ abstract class ResultSetIn extends In {
 				}
 			}
 		} catch (SQLException ex) {
-			Unreachable.uncheckedThrow(ex);
+			throw new RuntimeException(ex);
 		}
 	}
 

@@ -1,7 +1,8 @@
 package io.immutables.declaration.playground;
 
-import io.immutables.declaration.http.GET;
+import io.immutables.declaration.http.ClientException.ImATeaPot;
 import io.immutables.declaration.http.ClientException.NotFound;
+import io.immutables.declaration.http.GET;
 import io.immutables.declaration.http.POST;
 import io.immutables.declaration.http.Path;
 
@@ -20,6 +21,6 @@ public interface Playground {
 	 * Another example
 	 * @param x on param x
 	 */
-	@GET("?abc={x}")
-	Lass get(String x) throws NotFound;
+	@GET("?abc={x}&y")
+	Lass get(String x, String y) throws NotFound, ImATeaPot;
 }

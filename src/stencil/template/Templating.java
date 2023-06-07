@@ -55,10 +55,10 @@ interface Templating {
 
 		public record Else(List<Content> content)
 			implements HasContent {}
-
-		public record Compact(int from, int to, Then then, Optional<Else> otherwise)
-			implements Directive {}
 	}
+
+	record CompactIf(int from, int to, If.Then then, Optional<If.Else> otherwise)
+		implements Directive {}
 
 	record Let(int from, int to, String identifier, List<Content> content)
 		implements Directive, HasContent {}
@@ -87,4 +87,3 @@ interface Templating {
 		public record Predicate(ExpressionContent expression) implements Clause {}
 	}
 }
-

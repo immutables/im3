@@ -1,6 +1,6 @@
 package io.immutables.stencil.template;
 
-import io.immutables.common.Source;
+import io.immutables.stencil.Source;
 import io.immutables.meta.Null;
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -17,7 +17,7 @@ import static java.util.Objects.requireNonNull;
  * code to witness (Java syntax, type checking).
  * <ul>
  *   <li>Don't care about performance
- * 	 <li>Don't want to overuse use regexes (well, just a little bit)
+ * 	 <li>Don't want to overuse regexes (well, just a little bit)
  *   <li>Don't want to bring other (complex) tools
  *   <li>Want to write it in a day or so
  *   <li>(actually took 2 days and oh boi it's ugly, but what I want!)
@@ -70,6 +70,9 @@ class BrainDeadParser {
 			}
 		}
 		flush();
+		if (scanner != null) {
+			error("Incomplete unclosed definition or tag", scanner.from, scanner.to);
+		}
 	}
 
 	private void scanDeclaration() {
@@ -142,15 +145,12 @@ class BrainDeadParser {
 	}
 
 	class DefinitionScanner extends TemplateScanner {
-		private final int from;
-		private final int to;
 		private final String identifier;
 		private final List<String> parameters = new ArrayList<>();
 		private @Null StringBuilder signature;
 
 		DefinitionScanner(int from, int to, String identifier) {
-			this.from = from;
-			this.to = to;
+			super(from, to);
 			this.identifier = identifier;
 		}
 
@@ -246,6 +246,14 @@ class BrainDeadParser {
 	}
 
 	abstract class TemplateScanner {
+		final int from;
+		final int to;
+
+		TemplateScanner(int from, int to) {
+			this.from = from;
+			this.to = to;
+		}
+
 		StringBuilder fragment = new StringBuilder();
 		final List<Templating.Content> content = new ArrayList<>();
 		private int fragmentBegin;
@@ -459,14 +467,11 @@ class BrainDeadParser {
 
 	class ForScanner extends TemplateScanner {
 		private final TemplateScanner parent;
-		private final int from;
-		private final int to;
 		private final List<Templating.For.Clause> clauses = new ArrayList();
 
 		public ForScanner(TemplateScanner parent, int from, int to) {
+			super(from, to);
 			this.parent = parent;
-			this.from = from;
-			this.to = to;
 		}
 
 		TemplateScanner clauses() {
@@ -513,14 +518,11 @@ class BrainDeadParser {
 
 	class SpreadScanner extends TemplateScanner {
 		private final TemplateScanner parent;
-		private final int from;
-		private final int to;
 		private final StringBuilder expression;
 
 		SpreadScanner(TemplateScanner parent, int from, int to, StringBuilder expression) {
+			super(from, to);
 			this.parent = parent;
-			this.from = from;
-			this.to = to;
 			this.expression = expression;
 		}
 
@@ -534,14 +536,11 @@ class BrainDeadParser {
 
 	class BlockScanner extends TemplateScanner {
 		private final TemplateScanner parent;
-		private final int from;
-		private final int to;
 		private final StringBuilder expression;
 
 		BlockScanner(TemplateScanner parent, int from, int to, StringBuilder expression) {
+			super(from, to);
 			this.parent = parent;
-			this.from = from;
-			this.to = to;
 			this.expression = expression;
 		}
 
@@ -555,14 +554,11 @@ class BrainDeadParser {
 
 	class LetScanner extends TemplateScanner {
 		private final TemplateScanner parent;
-		private final int from;
-		private final int to;
 		private @Null String letName;
 
 		public LetScanner(TemplateScanner parent, int from, int to) {
+			super(from, to);
 			this.parent = parent;
-			this.from = from;
-			this.to = to;
 		}
 
 		TemplateScanner signature() {
@@ -583,17 +579,14 @@ class BrainDeadParser {
 
 	class CompactIfScanner extends TemplateScanner {
 		private final TemplateScanner parent;
-		private final int from;
-		private final int to;
 		private @Null Templating.If.Then then;
 		private final StringBuilder condition;
 		boolean wasElse;
 
 		public CompactIfScanner(TemplateScanner parent, int from, int to,
 			StringBuilder condition) {
+			super(from, to);
 			this.parent = parent;
-			this.from = from;
-			this.to = to;
 			this.condition = condition;
 		}
 
@@ -607,14 +600,14 @@ class BrainDeadParser {
 
 		@Override void end(int from, int to, String tag) {
 			if (tag.isEmpty()) {
-				Templating.If.Compact ifelse;
+				Templating.CompactIf ifelse;
 				if (wasElse) {
-					ifelse = new Templating.If.Compact(this.from, to,
+					ifelse = new Templating.CompactIf(this.from, to,
 						requireNonNull(then), Optional.of(
 						new Templating.If.Else(List.copyOf(content))));
 				} else {
 					cutThen();
-					ifelse = new Templating.If.Compact(this.from, to,
+					ifelse = new Templating.CompactIf(this.from, to,
 						requireNonNull(then), Optional.empty());
 				}
 				parent.acceptReturn(ifelse);
@@ -623,25 +616,23 @@ class BrainDeadParser {
 
 		private void cutThen() {
 			then = new Templating.If.Then(expressionOf(condition), List.copyOf(content));
+			content.clear();
 		}
 	}
 
 	class IfScanner extends TemplateScanner {
 		private final TemplateScanner parent;
-		private final int from;
-		private final int to;
 
 		private final List<Templating.If.Then> then = new ArrayList<>();
 		private boolean wasElse = false;
 		private @Null StringBuilder condition;
 
 		public IfScanner(TemplateScanner parent, int from, int to) {
+			super(from, to);
 			this.parent = parent;
-			this.from = from;
-			this.to = to;
 		}
 
-		TemplateScanner condition() {
+		IfScanner condition() {
 			int begin = p;
 			advanceUntilMatching(']');
 			condition = content(begin, p);
@@ -688,13 +679,10 @@ class BrainDeadParser {
 
 	class VoidScanner extends TemplateScanner {
 		private final TemplateScanner parent;
-		private final int from;
-		private final int to;
 
 		public VoidScanner(TemplateScanner parent, int from, int to) {
+			super(from, to);
 			this.parent = parent;
-			this.from = from;
-			this.to = to;
 		}
 
 		@Override void addVerbatim(Templating.Verbatim verbatim) {
@@ -714,8 +702,6 @@ class BrainDeadParser {
 
 	class CaseScanner extends TemplateScanner {
 		private final TemplateScanner parent;
-		private final int from;
-		private final int to;
 		private final StringBuilder expression;
 		private @Null String letName;
 
@@ -728,9 +714,8 @@ class BrainDeadParser {
 
 		public CaseScanner(TemplateScanner parent, int from, int to,
 			StringBuilder expression) {
+			super(from, to);
 			this.parent = parent;
-			this.from = from;
-			this.to = to;
 			this.expression = expression;
 		}
 
@@ -802,7 +787,7 @@ class BrainDeadParser {
 		private void endEither(int to) {
 			either.add(new Templating.Case.Either(
 				eitherFrom, to,
-				expressionOf(requireNonNull(eitherExpression)),
+				bindingExpressionOf(eitherExpression),
 				List.copyOf(content)));
 			eitherFrom = NOPE;
 			content.clear();
@@ -814,6 +799,10 @@ class BrainDeadParser {
 			elseFrom = NOPE;
 			content.clear();
 		}
+	}
+
+	private ExpressionContent bindingExpressionOf(StringBuilder expression) {
+		return ExpressionContent.binding(expression, literalsPool);
 	}
 
 	private boolean startsWithKeyword(String tag, String keyword) {

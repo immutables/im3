@@ -1,0 +1,41 @@
+[import
+	java.util.*
+	io.immutables.build.build.*;
+]
+
+[generate(List<GenModule> modules)]
+	[for m : modules]
+		[gradleModule(m)]
+	[/for]
+[/]
+
+[gradleModule(GenModule m)]
+[print _]
+[m.name]: generating
+[/]
+    [copyJava(m)]
+    [gradleBuild(m)]
+[/]
+
+[gradleBuild(GenModule m)]
+[files.path("rel/mod/", m.path, "/build.gradle").content _]
+// [m.name]
+dependencies {
+[for d : m.dependencies]
+	[case d.module]
+	[SourceModule sm ->]
+	[scope(d, m)] project(":[sm.relative.toString.replace('/', '.')]")
+	[/]
+	[VendorModule vm ->]
+	[for jar : vm.classJars]
+	[scope(d, m)] "[jar.gav]"
+	[/for]
+	[/]
+	[/case]
+[/for]
+}
+[//]
+
+[scope(Dependency d, GenModule m)][void]
+[m.shortName.equals("meta")?]api[:][d.isStatic?]compileOnly[:]implementation[//]
+[//]

@@ -1,22 +1,19 @@
-// Copyright 2023 Immutables Authors and Contributors
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//   http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//
-import static io.immutables.build.build.Sources.project;
+package io.immutables.build;
+
+import io.immutables.build.build.Dependencies;
+import io.immutables.build.build.SourceModule;
+import io.immutables.build.build.Sources;
+import io.immutables.stencil.Current;
+import io.immutables.stencil.Directory;
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Path;
+import java.util.List;
 import static io.immutables.build.build.Sources.scanSources;
 import static io.immutables.build.build.Vendored.module;
-import static io.immutables.build.build.Vendored.vendor;
 
+// Modules and versions are a copy-paste from build/Build
+// just don't know any better now
 interface Ver {
 	String Immutables = "2.9.2";
 	String Jsr305 = "3.0.1";
@@ -26,9 +23,8 @@ interface Ver {
 	String Spring = "6.0.9";
 }
 
-interface Build {
-	static void main(String... args) throws Exception {
-
+public class Release {
+	public static void main(String[] args) throws IOException {
 		module("org.immutables.value", a -> a
 			.classes("org.immutables:value", Ver.Immutables)
 			.noSources()
@@ -62,8 +58,28 @@ interface Build {
 			.classes("org.springframework:spring-web", Ver.Spring)
 		);
 
-		vendor();
 		scanSources("src");
-		project();
+		Dependencies.resolve();
+
+		var published = List.of(
+			"meta",
+			"that",
+			"codec",
+			"codec.jackson",
+			"stencil",
+			"stencil.template",
+			"declaration",
+			"declaration.processor");
+
+		render(new File(".").getCanonicalFile().toPath(),
+			published.stream()
+				.map(p -> new GenModule(p,
+					(SourceModule) Dependencies.get("io.immutables." + p)))
+				.toList());
+	}
+
+	private static void render(Path root, List<GenModule> modules) throws IOException {
+		var g = Current.use(new Directory(root), Gradles_generator::new);
+		g.generate(modules);
 	}
 }

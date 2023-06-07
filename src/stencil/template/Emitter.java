@@ -1,6 +1,5 @@
 package io.immutables.stencil.template;
 
-import io.immutables.stencil.JavaStencil;
 import io.immutables.stencil.Stencil;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -8,7 +7,6 @@ import static io.immutables.stencil.Literals.string;
 import static io.immutables.stencil.template.Templating.*;
 
 class Emitter extends Stencil.Raw {
-	private final JavaStencil java = new JavaStencil();
 	private final ProcessingStencil processing = new ProcessingStencil();
 	private final AtomicInteger idCounter = new AtomicInteger();
 
@@ -98,7 +96,7 @@ class Emitter extends Stencil.Raw {
 				renderBlock(scope, b);
 			} else if (content instanceof If i) {
 				renderIf(scope, i);
-			} else if (content instanceof If.Compact c) {
+			} else if (content instanceof CompactIf c) {
 				renderCompactIf(scope, c);
 			} else if (content instanceof Let l) {
 				renderLet(scope, l);
@@ -201,7 +199,7 @@ class Emitter extends Stencil.Raw {
 		scope.declare(l.identifier());
 	}
 
-	private void renderCompactIf(LocalScope scope, If.Compact c) {
+	private void renderCompactIf(LocalScope scope, CompactIf c) {
 		ifln();
 		put("if(");
 		var ifScope = scope.extend(":?");

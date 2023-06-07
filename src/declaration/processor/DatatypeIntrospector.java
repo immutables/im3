@@ -1,6 +1,5 @@
 package io.immutables.declaration.processor;
 
-import io.immutables.common.Vect;
 import io.immutables.meta.Inline;
 import io.immutables.meta.InsertOrder;
 import io.immutables.meta.Null;
@@ -8,7 +7,10 @@ import java.util.*;
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.AnnotatedConstruct;
 import javax.lang.model.element.*;
-import javax.lang.model.type.*;
+import javax.lang.model.type.DeclaredType;
+import javax.lang.model.type.TypeKind;
+import javax.lang.model.type.TypeMirror;
+import javax.lang.model.type.TypeVariable;
 import javax.lang.model.util.Elements;
 import javax.lang.model.util.Types;
 import javax.tools.Diagnostic;
@@ -390,11 +392,11 @@ class DatatypeIntrospector {
 	}
 
 	private String nameOf(TypeElement element) {
-		var name = Vect.<String>of();
+		var nameParts = new ArrayList<CharSequence>();
 		for (Element e = element; e.getKind() != ElementKind.PACKAGE; e = e.getEnclosingElement()) {
-			name = name.prepend(e.getSimpleName().toString());
+			nameParts.add(0, e.getSimpleName());
 		}
-		return name.join(".");
+		return String.join(".", nameParts);
 	}
 
 	private void error(String message, Element element) {

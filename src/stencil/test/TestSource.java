@@ -1,7 +1,7 @@
-package io.immutables.common.test;
+package io.immutables.stencil.test;
 
-import io.immutables.common.Source;
-import io.immutables.common.Source.Lines;
+import io.immutables.stencil.Source;
+import io.immutables.stencil.Source.Lines;
 import java.nio.CharBuffer;
 import org.junit.Test;
 import static io.immutables.that.Assert.that;
