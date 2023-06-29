@@ -1,0 +1,39 @@
+This is just a documentation
+[import java.util.*]
+
+[dohere()]
+	[files.path("x/my.txt", _)]
+[template1]
+	[/]
+[/]
+
+
+[template1()]
+In the file
+	[let good]g[true?][for a : range(4)]o[/for]dd[/][/let]
+	[if true]then[/if]
+		[if true]
+	[good]\[[range(7)...], [/]\]
+	is
+	u
+		[/]
+		[template2]
+	drop whitespace [>-]       UP TO HERE       [-<]!!!
+	[>-]
+
+	    sdsd
+
+
+	    asdasd
+
+	       [-<]
+[/]
+
+[template2()]
+[for r : List.of("abra", "cadabra", "focus", "pocus")]
+	[# + 1]. Line [r]
+		- [for g : range(4)][if #], [/][(## + 1) * 100 + (# + 1)][/]
+[/for]
+
+-[if true]a[if true]b[if true]c[///]
+[/]

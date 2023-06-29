@@ -135,7 +135,7 @@ public class Codecs {
 			};
 		}
 
-		public double takeDouble() throws IOException {
+		public double takeDouble() {
 			return switch (value) {
 				case null -> throw new NullPointerException();
 				case Number n -> n.doubleValue();
@@ -143,7 +143,7 @@ public class Codecs {
 			};
 		}
 
-		public long takeLong() throws IOException {
+		public long takeLong() {
 			return switch (value) {
 				case null -> throw new NullPointerException();
 				case Number n -> n.longValue();
@@ -151,7 +151,7 @@ public class Codecs {
 			};
 		}
 
-		public int takeInt() throws IOException {
+		public int takeInt() {
 			return switch (value) {
 				case null -> throw new NullPointerException();
 				case Number n -> n.intValue();

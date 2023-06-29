@@ -3,12 +3,10 @@ package io.immutables.regres;
 import io.immutables.codec.*;
 import io.immutables.codec.jackson.JsonGeneratorOut;
 import io.immutables.codec.jackson.JsonParserIn;
-import io.immutables.meta.Null;
 import java.io.IOException;
 import java.io.StringWriter;
 import java.lang.reflect.Type;
 import com.fasterxml.jackson.core.JsonFactory;
-import com.fasterxml.jackson.core.json.JsonWriteContext;
 
 public final class Codecs {
 	private Codecs() {}
@@ -48,7 +46,7 @@ public final class Codecs {
 			}
 		}
 
-		public boolean canExpect(In.At first) {
+		public boolean expects(In.At first) {
 			return first == In.At.String;
 		}
 

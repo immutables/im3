@@ -1,0 +1,19 @@
+[import java.util.List]
+
+[generate(List<Declaration> declarations)]
+	[for d : declarations, if d::<Declaration.Contract c>]
+		[sources.inPackage(c.module, ".mvc2").name(c.name).java _]
+[contractInterface(c)]
+		[/]
+	[/for]
+[/]
+
+[contractInterface(Declaration.Contract contract)]
+	[case contract]
+		[Good ->] Good[/]
+		[Bad ->] Bad[/]
+		[else] Else[/]
+	[/case]
+[/]
+
+[aaa()]

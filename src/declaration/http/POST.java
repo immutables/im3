@@ -1,3 +1,12 @@
 package io.immutables.declaration.http;
 
-public @interface POST {}
+import java.lang.annotation.*;
+
+@Documented
+@Inherited
+@Target(ElementType.METHOD)
+@Retention(RetentionPolicy.RUNTIME)
+public @interface POST {
+	/** Extension path, can contain path and query parameters. */
+	String value() default "";
+}

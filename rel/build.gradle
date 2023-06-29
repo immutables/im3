@@ -1,0 +1,119 @@
+
+def javaVersion = 17
+
+group publishGroup
+version publishVersion
+
+subprojects {
+	apply plugin: 'java-library' // gives api/implementation scopes
+	apply plugin: 'signing'
+	apply plugin: 'maven-publish'
+
+	repositories {
+		mavenCentral()
+	}
+
+	group = rootProject.group
+	version = rootProject.version
+
+	sourceCompatibility = javaVersion
+	targetCompatibility = javaVersion
+
+	java {
+		toolchain.languageVersion = JavaLanguageVersion.of(javaVersion)
+		modularity.inferModulePath = true
+		withJavadocJar()
+		withSourcesJar()
+	}
+
+	compileJava {
+		options.compilerArgs += '--enable-preview'
+	}
+
+	tasks.withType(JavaCompile).configureEach {
+		options.compilerArgs += '--enable-preview'
+		options.compilerArgs += '-parameters'
+		options.incremental = true
+	}
+
+	tasks.withType(Test).configureEach {
+		jvmArgs += "--enable-preview"
+	}
+
+	tasks.withType(JavaExec).configureEach {
+		jvmArgs += '--enable-preview'
+	}
+
+	tasks.withType(JavaExec).configureEach {
+		jvmArgs += '--enable-preview'
+	}
+
+	tasks.withType(Javadoc).configureEach {
+		def javadocOptions = options as CoreJavadocOptions
+
+		javadocOptions.addStringOption("-release", "17")
+		javadocOptions.addBooleanOption("-enable-preview", true)
+	}
+
+	copy {
+		duplicatesStrategy = DuplicatesStrategy.INCLUDE
+	}
+
+	publishing {
+		publications {
+			mavenJava(MavenPublication) {
+				artifactId = project.name
+				from components.java
+				versionMapping {
+					usage('java-api') {
+						fromResolutionOf('runtimeClasspath')
+					}
+					usage('java-runtime') {
+						fromResolutionResult()
+					}
+				}
+				pom {
+					name = group + '.' + artifactId
+					description = 'A concise description of my library'
+					url = 'http://www.example.com/library'
+					properties = [
+						myProp          : "value",
+						"prop.with.dots": "anotherValue"
+					]
+					licenses {
+						license {
+							name = 'The Apache License, Version 2.0'
+							url = 'http://www.apache.org/licenses/LICENSE-2.0.txt'
+						}
+					}
+					developers {
+						developer {
+							id = 'johnd'
+							name = 'John Doe'
+							email = 'john.doe@example.com'
+						}
+					}
+					scm {
+						connection = 'scm:git:git://example.com/my-library.git'
+						developerConnection = 'scm:git:ssh://example.com/my-library.git'
+						url = 'http://example.com/my-library/'
+					}
+				}
+			}
+		}
+		repositories {
+			maven {
+				url 'https://oss.sonatype.org/service/local/staging/deploy/maven2'
+				credentials {
+					username sonatypeUsername
+					password sonatypePassword
+				}
+			}
+		}
+	}
+
+	signing {
+		sign publishing.publications.mavenJava
+	}
+
+}

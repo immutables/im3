@@ -12,10 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 //
-import static build.Sources.project;
-import static build.Sources.scanSources;
-import static build.Vendored.module;
-import static build.Vendored.vendor;
+import static io.immutables.build.build.Sources.project;
+import static io.immutables.build.build.Sources.scanSources;
+import static io.immutables.build.build.Vendored.module;
+import static io.immutables.build.build.Vendored.vendor;
 
 interface Ver {
 	String Immutables = "2.9.2";
@@ -23,6 +23,7 @@ interface Ver {
 	String Jmh = "1.36";
 	String Jackson = "2.14.2";
 	String Guava = "31.1-jre";
+	String Spring = "6.0.9";
 }
 
 interface Build {
@@ -57,12 +58,12 @@ interface Build {
 		module("com.google.common", a -> a
 			.classes("com.google.guava:guava", Ver.Guava)
 		);
+		module("spring.web", a -> a
+			.classes("org.springframework:spring-web", Ver.Spring)
+		);
 
 		vendor();
 		scanSources("src");
 		project();
-		//Release.();
-
-		System.out.println("END! " + String.join(", ", args));
 	}
 }

@@ -1,0 +1,18 @@
+rootProject.name = 'im3'
+
+includeSub 'meta'
+includeSub 'that'
+includeSub 'codec'
+includeSub 'codec.jackson'
+includeSub 'stencil'
+includeSub 'stencil.template'
+includeSub 'declaration'
+includeSub 'declaration.processor'
+
+def includeSub(name) {
+	var prefixed = ':' + name
+	include(prefixed)
+	var p = project(prefixed)
+	p.name = name
+	p.projectDir = file('mod/' + name.replace('.', '/'))
+}

@@ -1,5 +1,0 @@
-package build;
-
-interface Gradle {
-
-}

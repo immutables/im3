@@ -1,0 +1,49 @@
+[import
+	java.util.List
+	static io.immutables.declaration.processor.Declaration.*
+]
+
+[generate(List<Declaration> declarations)]
+	[for d : declarations, if d::<Contract c>]
+		[sources.inPackage(c.module, ".mvc").name(c.name).java _]
+[contractInterface(c)]
+		[/]
+	[/for]
+[/]
+
+[contractInterface(Contract c)]
+package [c.module].mvc.[c.name];
+
+import org.springframework.web.bind.annotation.*;
+
+@io.immutables.meta.NonnullByDefault
+@RestController
+public interface [c.name] extends [c.module].[c.name] {
+	[for op : c.operations.values]
+
+	[operationMethod(op)]
+	[/for]
+}
+[/]
+
+[operationMethod(Operation op)]
+/**
+ *[doclines(op.comment)...]
+ *[/]
+ */
+@java.lang.Override
+@ResponseBody
+@[mapp(op.method)]Mapping("[pathOf(op)]")
+[op.returns.type] [op.name](
+	[for p : op.parameters][#?],
+	[/][operationParameter(p)][/for])[op.thrown?]
+	throws [for t : op.thrown][#?], [/][t.type][//];
+[/]
+
+[operationParameter(Parameter p)][void]
+[case p.mapping]
+	[Path ->]@PathVariable("[p.name]") [/]
+	[Query ->]@RequestParam("[p.name]") [/]
+	[Body ->]@RequestBody [/]
+[/case]
+[/void][p.type] [p.name][/]

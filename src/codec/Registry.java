@@ -260,7 +260,7 @@ public class Registry implements Codec.Resolver {
 
 		public <T> Builder add(
 			Function<T, String> toString, Function<String, T> fromString, Class<? extends T> type) {
-			var codec = StringCodec.from(toString, fromString, type);
+			var codec = FromToStringCodec.from(toString, fromString, type);
 			entries.add(new Entry(
 				(t, r, m, l) -> r == type ? codec : null,
 				Medium.Any, codec.classes()));

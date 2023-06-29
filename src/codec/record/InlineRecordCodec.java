@@ -20,8 +20,7 @@ final class InlineRecordCodec extends CaseCodec<Object, In, Out> implements Expe
 		var componentType = Types.resolveArguments(component.getGenericType(), arguments);
 
 		componentCodec = lookup.get(componentType);
-		canonicalConstructor = Reflect.getCanonicalConstructor(raw,
-			new Class<?>[]{component.getType()});
+		canonicalConstructor = Reflect.getCanonicalConstructor(raw);
 		accessor = component.getAccessor();
 	}
 
@@ -40,14 +39,15 @@ final class InlineRecordCodec extends CaseCodec<Object, In, Out> implements Expe
 			return c.mayConform(in);
 		}
 		if (componentCodec instanceof Expecting e) {
-			return e.canExpect(in.peek());
+			return e.expects(in.peek());
 		}
-		// well, maybe this codec can still work, but we will not guess and bail out
+		// well, maybe component codec could still, possibly, work,
+		// but we will not guess and bail out
 		return false;
 	}
 
-	public boolean canExpect(In.At first) {
-		return componentCodec instanceof Expecting e && e.canExpect(first);
+	public boolean expects(In.At first) {
+		return componentCodec instanceof Expecting e && e.expects(first);
 	}
 
 	public String toString() {

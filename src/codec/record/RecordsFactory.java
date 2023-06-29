@@ -11,13 +11,6 @@ import java.util.Comparator;
 import java.util.ServiceLoader;
 
 public final class RecordsFactory implements Codec.Factory<In, Out> {
-	static final MetadataProvider metadata;
-	static {
-		metadata = ServiceLoader.load(MetadataProvider.class).stream()
-			.map(ServiceLoader.Provider::get)
-			.max(Comparator.comparingInt(MetadataProvider::priority))
-			.orElseThrow(() -> new AssertionError("At least default provider required"));
-	}
 	public @Null Codec<?, In, Out> tryCreate(
 		Type type,
 		Class<?> raw,
@@ -28,7 +21,7 @@ public final class RecordsFactory implements Codec.Factory<In, Out> {
 			return new EnumCodec<>(raw);
 		}
 		if (raw.isRecord()) {
-			if (metadata.isInlineRecord(raw)) {
+			if (Providers.metadata().isInlineRecord(raw)) {
 				RecordComponent[] components = raw.getRecordComponents();
 				if (components.length == 1) {
 					return new InlineRecordCodec(type, raw, components[0], lookup);

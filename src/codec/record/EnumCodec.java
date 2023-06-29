@@ -30,7 +30,7 @@ final class EnumCodec<E extends Enum<E>> extends CaseCodec<E, In, Out> implement
 			constantNames[i] = c.name();
 		}
 
-		defaultConstant = RecordsFactory.metadata.findDefaultConstant(enumType);
+		defaultConstant = Providers.metadata().findDefaultConstant(enumType);
 	}
 
 	public void encode(Out out, E instance) throws IOException {
@@ -64,7 +64,7 @@ final class EnumCodec<E extends Enum<E>> extends CaseCodec<E, In, Out> implement
 		return false;
 	}
 
-	public boolean canExpect(In.At first) {
+	public boolean expects(In.At first) {
 		return first == In.At.String;
 	}
 

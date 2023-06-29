@@ -43,13 +43,13 @@ final class ProductRecordCodec<T> extends CaseCodec<T, In, Out> implements Expec
 			componentAccessors[i] = c.getAccessor();
 
 			var codec = lookup.get(componentType);
-			if (RecordsFactory.metadata.isNullableComponent(c)) {
+			if (Providers.metadata().isNullableComponent(c)) {
 				codec = Codecs.nullSafe(codec);
 			}
 			componentCodecs[i] = codec;
 		}
 
-		canonicalConstructor = Reflect.getCanonicalConstructor(raw, componentRawTypes);
+		canonicalConstructor = Reflect.getCanonicalConstructor(raw);
 	}
 
 	public boolean mayConform(In in) throws IOException {
@@ -69,8 +69,8 @@ final class ProductRecordCodec<T> extends CaseCodec<T, In, Out> implements Expec
 			if (c instanceof CaseCodec<Object, In, Out> caseCodec) {
 				if (!caseCodec.mayConform(in)) return false;
 				in.skip();
-			} else if (c instanceof Expecting expects) {
-				if (!expects.canExpect(in.peek())) return false;
+			} else if (c instanceof Expecting expecting) {
+				if (!expecting.expects(in.peek())) return false;
 				in.skip();
 			}
 			i++;
@@ -129,7 +129,7 @@ final class ProductRecordCodec<T> extends CaseCodec<T, In, Out> implements Expec
 		return (T) instance;
 	}
 
-	public boolean canExpect(In.At first) {
+	public boolean expects(In.At first) {
 		return first == In.At.Array;
 	}
 
