@@ -32,7 +32,7 @@ final class RecordCodec<T> extends CaseCodec<T, In, Out> implements Expecting {
 		componentTypes = new Type[components.length];
 		componentCodecs = (Codec<Object, In, Out>[]) new Codec<?, ?, ?>[length];
 		componentAccessors = new Method[length];
-		var componentRawTypes = new Class<?>[length];
+		//var componentRawTypes = new Class<?>[length];
 
 		for (int i = 0; i < length; i++) {
 			var c = components[i];
@@ -43,7 +43,7 @@ final class RecordCodec<T> extends CaseCodec<T, In, Out> implements Expecting {
 			var componentType = Types.resolveArguments(c.getGenericType(), arguments);
 
 			componentTypes[i] = componentType;
-			componentRawTypes[i] = c.getType();
+			//componentRawTypes[i] = c.getType();
 			componentAccessors[i] = c.getAccessor();
 
 			var codec = lookup.get(componentType);

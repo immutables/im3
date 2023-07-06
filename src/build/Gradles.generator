@@ -7,7 +7,33 @@
 	[for m : modules]
 		[gradleModule(m)]
 	[/for]
+
+	[metainfService("stencil/template",
+		"javax.annotation.processing.Processor", _)]
+io.immutables.stencil.template.Processor
+	[/]
+
+	[metainfService("codec",
+  		"io.immutables.codec.record.MetadataProvider", _)]
+io.immutables.codec.record.DefaultMetadataProvider
+  [/]
+
 [/]
+
+[gradleIncrementalProcessor(String modulePath, Object processors)]
+[-- io.immutables.stencil.template.Processor]
+[files.path(
+	"rel/mod/", modulePath,
+	"/src/main/resources/META-INF/gradle/incremental.annotation.processors").content _]
+[processors]
+[//]
+
+[metainfService(String modulePath, String interfaceType, Object implementations)]
+[files.path(
+	"rel/mod/", modulePath,
+	"/src/main/resources/META-INF/services/", interfaceType).content _]
+[implementations]
+[//]
 
 [gradleModule(GenModule m)]
 [print _]

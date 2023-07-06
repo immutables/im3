@@ -12,6 +12,6 @@ module io.immutables.declaration.processor {
 	requires io.immutables.stencil.template;
 	//	requires io.immutables.codec;
 	//	requires io.immutables.codec.jackson;
-
-	provides javax.annotation.processing.Processor with io.immutables.declaration.processor.Processor;
+/*	provides javax.annotation.processing.Processor
+		with io.immutables.declaration.processor.Processor;*/
 }

@@ -1,6 +1,7 @@
 package io.immutables.build;
 
 import io.immutables.build.build.*;
+import io.immutables.meta.Null;
 import io.immutables.stencil.*;
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -24,27 +25,26 @@ public abstract class Gradles extends Template {
 			.exclude("test/**")
 			.forEach(module.nested(), (f, nested) ->
 				f.exclude(nested.path(), "/**"))
-			.exclude("module-info.java")
+			.exclude("**/module-info.java")
 			.copyTo("rel/mod/", module.path(), "/src/main/java/io/immutables/",
 				module.path());
 
-		Path pathToGenerated;
-		try {
-			pathToGenerated = files.root().resolve(
-					".build/generated/" + module.shortName() + "/_annotations");
-			if (!Files.exists(pathToGenerated)) return;
-
-			pathToGenerated = pathToGenerated.toRealPath();
-
-			//var p = Files.readSymbolicLink(pathToGenerated);
-			//System.out.println(p);
-			//pathToGenerated = p;
-		} catch (IOException e) {
-			throw new UncheckedIOException(e);
-		}
+		@Null var pathToGenerated = pathToGenerated(module);
+		if (pathToGenerated == null) return;
 
 		files.dir(pathToGenerated)
 			.include("**/*.java")
 			.copyTo("rel/mod/", module.path(), "/src/main/java");
+	}
+
+	private @Null Path pathToGenerated(GenModule module) {
+		try {
+			var path = files.root().resolve(
+					".build/generated/" + module.shortName() + "/_annotations");
+			if (!Files.exists(path)) return null;
+			return path.toRealPath();
+		} catch (IOException e) {
+			throw new UncheckedIOException(e);
+		}
 	}
 }

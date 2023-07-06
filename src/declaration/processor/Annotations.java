@@ -14,6 +14,7 @@ import javax.lang.model.type.TypeMirror;
 import javax.lang.model.util.SimpleAnnotationValueVisitor14;
 import javax.tools.Diagnostic;
 
+@Deprecated
 class Annotations {
 	private Annotations() {}
 

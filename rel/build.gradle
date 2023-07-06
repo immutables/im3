@@ -37,10 +37,6 @@ subprojects {
 	}
 
 	tasks.withType(Test).configureEach {
-		jvmArgs += "--enable-preview"
-	}
-
-	tasks.withType(JavaExec).configureEach {
 		jvmArgs += '--enable-preview'
 	}
 
@@ -51,8 +47,8 @@ subprojects {
 	tasks.withType(Javadoc).configureEach {
 		def javadocOptions = options as CoreJavadocOptions
 
-		javadocOptions.addStringOption("-release", "17")
-		javadocOptions.addBooleanOption("-enable-preview", true)
+		javadocOptions.addStringOption('-release', "$javaVersion")
+		javadocOptions.addBooleanOption('-enable-preview', true)
 	}
 
 	copy {
@@ -64,6 +60,7 @@ subprojects {
 			mavenJava(MavenPublication) {
 				artifactId = project.name
 				from components.java
+
 				versionMapping {
 					usage('java-api') {
 						fromResolutionOf('runtimeClasspath')
@@ -75,28 +72,25 @@ subprojects {
 				pom {
 					name = group + '.' + artifactId
 					description = 'A concise description of my library'
-					url = 'http://www.example.com/library'
-					properties = [
-						myProp          : "value",
-						"prop.with.dots": "anotherValue"
-					]
+					url = 'http://immutables.org'
+					properties = [:]
 					licenses {
 						license {
-							name = 'The Apache License, Version 2.0'
+							name = 'The Apache Software License, Version 2.0'
 							url = 'http://www.apache.org/licenses/LICENSE-2.0.txt'
 						}
 					}
 					developers {
 						developer {
-							id = 'johnd'
-							name = 'John Doe'
-							email = 'john.doe@example.com'
+							id = 'elucash'
+							name = 'Ievgen Lukash'
+							email = 'e.lucash@gmail.com'
 						}
 					}
 					scm {
-						connection = 'scm:git:git://example.com/my-library.git'
-						developerConnection = 'scm:git:ssh://example.com/my-library.git'
-						url = 'http://example.com/my-library/'
+						connection = 'scm:git:https://github.com/immutables/im3.git'
+						developerConnection = 'scm:git:git@github.com:immutables/im3.git'
+						url = 'https://github.com/immutables/im3.git'
 					}
 				}
 			}
@@ -115,5 +109,4 @@ subprojects {
 	signing {
 		sign publishing.publications.mavenJava
 	}
-
 }

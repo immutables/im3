@@ -310,17 +310,15 @@ class DatatypeIntrospector {
 					elementAnnotations, typeUseAnnotations);
 			}
 
-			@Null var containerType = containerTypes.get(qualifiedName);
-			if (containerType != null) {
+			@Null var containerKind = containerTypes.get(qualifiedName);
+			if (containerKind != null) {
 				@Null var a = requiredTypeArgument(type, 0);
 				// just error propagation, need to replace with special Type.Error ?
 				if (a == null) return Type.Primitive.Void;
 				// when we do a recursive type decode, we let go of element annotations
-				Type argumentType = decode(a, KnownAnnotations.Empty);
-
-				return wrapByAnnotations(
-					new Type.Container(containerType, argumentType),
-					elementAnnotations, typeUseAnnotations);
+				var elementType = decode(a, KnownAnnotations.Empty);
+				var containerType = new Type.Container(containerKind, elementType);
+				return wrapByAnnotations(containerType, elementAnnotations, typeUseAnnotations);
 			}
 
 			if (!type.getTypeArguments().isEmpty()) {
@@ -330,16 +328,13 @@ class DatatypeIntrospector {
 				for (var a : type.getTypeArguments()) {
 					arguments.add(decode(a, KnownAnnotations.Empty));
 				}
-				return wrapByAnnotations(
-					new Type.Applied(reference, List.copyOf(arguments)),
-					elementAnnotations, typeUseAnnotations);
+
+				var appliedType = new Type.Applied(reference, List.copyOf(arguments));
+				return wrapByAnnotations(appliedType, elementAnnotations, typeUseAnnotations);
 			}
 
-			var reference = reference(typeElement);
-
-			return wrapByAnnotations(
-				new Type.Terminal(reference),
-				elementAnnotations, typeUseAnnotations);
+			var terminalType = new Type.Terminal(reference(typeElement));
+			return wrapByAnnotations(terminalType, elementAnnotations, typeUseAnnotations);
 		}
 
 		private Declaration.Reference reference(TypeElement typeElement) {

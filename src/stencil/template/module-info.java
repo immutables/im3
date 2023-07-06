@@ -10,5 +10,6 @@ module io.immutables.stencil.template {
 
 	exports io.immutables.stencil.template;
 
-	provides javax.annotation.processing.Processor with io.immutables.stencil.template.Processor;
+	provides javax.annotation.processing.Processor
+		with io.immutables.stencil.template.Processor;
 }

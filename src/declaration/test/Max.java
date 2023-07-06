@@ -12,9 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 //
-@NonnullByDefault
-@CheckReturnByDefault
-package io.immutables.declaration.constrain;
+package io.immutables.declaration.test;
 
-import io.immutables.meta.CheckReturnByDefault;
-import io.immutables.meta.NonnullByDefault;
+public @interface Max {
+	double value();
+}

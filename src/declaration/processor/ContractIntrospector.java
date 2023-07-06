@@ -2,6 +2,7 @@ package io.immutables.declaration.processor;
 
 import io.immutables.declaration.http.*;
 import io.immutables.meta.Null;
+
 import java.util.*;
 import java.util.function.Consumer;
 import javax.annotation.processing.ProcessingEnvironment;
@@ -35,7 +36,6 @@ class ContractIntrospector {
 	}
 
 	Optional<Declaration.Contract> introspect(TypeElement type) {
-
 		var name = type.getSimpleName().toString();
 
 		assert type.getKind() == ElementKind.INTERFACE;
@@ -56,13 +56,21 @@ class ContractIntrospector {
 		// FIXME path actually required, but not validated here?
 		var pathPrefix = path != null ? path.value() : "";
 
-		return Optional.of(new Declaration.Contract(
+		var contract = new Declaration.Contract(
 			Declaration.Contract.Tag.Is,
 			datatypes.reference(type),
 			pathPrefix,
 			extractOperations(type, pathPrefix),
 			commentOf(type)
-		));
+		);
+
+		var qualifiedName = type.getQualifiedName().toString();
+		// This is a bit illogical to go all the way introspecting
+		// and only here realizing we could have it cached already,
+		// but let it be for now, also we reach DatatypesIntrospector declaration cache.
+		// This asymmetry definitely require refactoring.
+		return Optional.of((Declaration.Contract)
+			datatypes.declarations.computeIfAbsent(qualifiedName, q -> contract));
 	}
 
 	private KnownAnnotations knownAnnotationsOf(AnnotatedConstruct type) {
@@ -92,10 +100,8 @@ class ContractIntrospector {
 
 			Set<Modifier> modifiers = method.getModifiers();
 
-			// Maybe warn?
+			// Maybe warn? probably not at the moment
 			if (modifiers.contains(Modifier.STATIC) || modifiers.contains(Modifier.NATIVE)) continue;
-
-			var violations = new ArrayList<Runnable>();
 
 			boolean assumedValid = true;
 			if (method.isDefault()) {
@@ -259,7 +265,8 @@ class ContractIntrospector {
 		return status != null ? status.value() : defaultStatus;
 	}
 
-	private record HttpBinding(PathTemplate template, Declaration.HttpMethod method) {}
+	private record HttpBinding(PathTemplate template, Declaration.HttpMethod method) {
+	}
 
 	private HttpBinding extractHttpBinding(
 		KnownAnnotations annotations, ExecutableElement method, String pathPrefix) {

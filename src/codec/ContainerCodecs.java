@@ -15,8 +15,6 @@ final class ContainerCodecs {
 		return null;
 	};
 
-	// TODO how to skip field altogether if optional?
-	// need a hook to not output a field name
 	private final static class OptionalCodec<T> extends DefaultingCodec<Optional<T>, In, Out> {
 		private final Codec<T, In, Out> codec;
 

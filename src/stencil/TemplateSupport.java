@@ -62,7 +62,15 @@ public class TemplateSupport extends Stencil.Raw {
 	}
 
 	public void $(Supplier<?> s) {
-		out().put(s.get());
+		var o = s.get();
+		// just recursively deal with it, don't mixup overloads
+		if (o instanceof Supplier<?> nestedSupplier) {
+			$(nestedSupplier);
+ 		} else if (o instanceof Runnable nestedRunnable) {
+			$(nestedRunnable);
+		} else {
+			out().put(o);
+		}
 	}
 
 	public void $(Runnable r) {

@@ -2,10 +2,8 @@ package io.immutables.declaration.processor;
 
 import io.immutables.declaration.Exclude;
 import io.immutables.declaration.http.Path;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+
+import java.util.*;
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.AnnotatedConstruct;
 import javax.lang.model.element.Element;
@@ -57,5 +55,9 @@ class InventoryDiscoverer {
 		}
 
 		return declarations;
+	}
+
+	public Collection<Declaration> allDeclarations() {
+		return Collections.unmodifiableCollection(datatypes.declarations.values());
 	}
 }
