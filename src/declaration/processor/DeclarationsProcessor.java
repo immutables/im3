@@ -5,9 +5,7 @@ import io.immutables.meta.Late;
 import io.immutables.stencil.template.ProcessingCurrent;
 import java.io.PrintWriter;
 import java.io.StringWriter;
-import java.util.Collection;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 import javax.annotation.processing.*;
 import javax.lang.model.SourceVersion;
 import javax.lang.model.element.PackageElement;
@@ -15,6 +13,8 @@ import javax.lang.model.element.TypeElement;
 import javax.tools.Diagnostic;
 
 public abstract class DeclarationsProcessor extends AbstractProcessor {
+	private final Map<String, List<Declaration>> declarationsByPackage = new HashMap<>();
+
 	private @Late InventoryDiscoverer discoverer;
 	private @Late ProcessingCurrent current;
 
@@ -41,9 +41,7 @@ public abstract class DeclarationsProcessor extends AbstractProcessor {
 	}
 
 	/**
-	 * Process (
-	 * @param packageName
-	 * @param declarations
+	 * Process declaration package, generate some artifacts etc.
 	 */
 	protected abstract void process(String packageName, Collection<Declaration> declarations);
 
@@ -51,12 +49,12 @@ public abstract class DeclarationsProcessor extends AbstractProcessor {
 	 * Here we can finalize and generate any summary including all processed declarations.
 	 * @param declarations collection of all declarations visited
 	 */
-	protected void over(Collection<Declaration> declarations) {}
+	protected void over(Map<String, List<Declaration>> declarations) {}
 
 	@Override
 	public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment round) {
 		if (round.processingOver()) {
-			over(discoverer.allDeclarations());
+			over(declarationsByPackage);
 			return true;
 		}
 
@@ -65,6 +63,9 @@ public abstract class DeclarationsProcessor extends AbstractProcessor {
 			for (var p : inventoryPackages) {
 				var packageName = ((PackageElement) p).getQualifiedName().toString();
 				var declarations = discoverer.discover(p);
+
+				declarationsByPackage.put(packageName, declarations);
+
 				process(packageName, declarations);
 			}
 		} catch (Throwable e) {

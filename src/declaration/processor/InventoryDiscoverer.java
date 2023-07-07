@@ -17,7 +17,7 @@ class InventoryDiscoverer {
 
 	private final DatatypeIntrospector datatypes;
 
-	final Map<AnnotatedConstruct, KnownAnnotations> annotationsCache = new HashMap<>();
+	private final Map<AnnotatedConstruct, KnownAnnotations> annotationsCache = new HashMap<>();
 
 	InventoryDiscoverer(ProcessingEnvironment processing) {
 		this.processing = processing;
@@ -55,9 +55,5 @@ class InventoryDiscoverer {
 		}
 
 		return declarations;
-	}
-
-	public Collection<Declaration> allDeclarations() {
-		return Collections.unmodifiableCollection(datatypes.declarations.values());
 	}
 }

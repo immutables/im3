@@ -24,9 +24,9 @@ class ContractIntrospector {
 	private final Map<AnnotatedConstruct, KnownAnnotations> annotationsCache;
 
 	ContractIntrospector(
-		ProcessingEnvironment processing,
-		DatatypeIntrospector datatypes,
-		Map<AnnotatedConstruct, KnownAnnotations> annotationsCache) {
+			ProcessingEnvironment processing,
+			DatatypeIntrospector datatypes,
+			Map<AnnotatedConstruct, KnownAnnotations> annotationsCache) {
 
 		this.processing = processing;
 		this.elements = processing.getElementUtils();
@@ -57,11 +57,11 @@ class ContractIntrospector {
 		var pathPrefix = path != null ? path.value() : "";
 
 		var contract = new Declaration.Contract(
-			Declaration.Contract.Tag.Is,
-			datatypes.reference(type),
-			pathPrefix,
-			extractOperations(type, pathPrefix),
-			commentOf(type)
+				Declaration.Contract.Tag.Is,
+				datatypes.reference(type),
+				pathPrefix,
+				extractOperations(type, pathPrefix),
+				commentOf(type)
 		);
 
 		var qualifiedName = type.getQualifiedName().toString();
@@ -70,7 +70,7 @@ class ContractIntrospector {
 		// but let it be for now, also we reach DatatypesIntrospector declaration cache.
 		// This asymmetry definitely require refactoring.
 		return Optional.of((Declaration.Contract)
-			datatypes.declarations.computeIfAbsent(qualifiedName, q -> contract));
+				datatypes.declarations.computeIfAbsent(qualifiedName, q -> contract));
 	}
 
 	private KnownAnnotations knownAnnotationsOf(AnnotatedConstruct type) {
@@ -82,10 +82,10 @@ class ContractIntrospector {
 	}
 
 	private Map<String, Declaration.Operation> extractOperations(
-		TypeElement type, String pathPrefix) {
+			TypeElement type, String pathPrefix) {
 
 		List<ExecutableElement> allMethods = List.copyOf( // make it eagerly computed
-			ElementFilter.methodsIn(elements.getAllMembers(type)));
+				ElementFilter.methodsIn(elements.getAllMembers(type)));
 
 		var declaringType = (DeclaredType) type.asType();
 		var operations = new LinkedHashMap<String, Declaration.Operation>(allMethods.size());
@@ -94,7 +94,7 @@ class ContractIntrospector {
 			var name = method.getSimpleName().toString();
 
 			if (((TypeElement) method.getEnclosingElement()).getQualifiedName()
-				.contentEquals(Object.class.getName())) continue;
+					.contentEquals(Object.class.getName())) continue;
 
 			var mirror = (ExecutableType) types.asMemberOf(declaringType, method);
 
@@ -131,18 +131,18 @@ class ContractIntrospector {
 			var collectedFixedQuery = new ArrayList<Declaration.FixedQuery>();
 
 			collectParameters(
-				method, mirror, binding,
-				collectedParameters::add, collectedFixedQuery::add);
+					method, mirror, binding,
+					collectedParameters::add, collectedFixedQuery::add);
 
 			operations.put(name, new Declaration.Operation(
-				name,
-				binding.template,
-				binding.method,
-				returns,
-				thrown,
-				List.copyOf(collectedParameters),
-				List.copyOf(collectedFixedQuery),
-				commentOf(method)
+					name,
+					binding.template,
+					binding.method,
+					returns,
+					thrown,
+					List.copyOf(collectedParameters),
+					List.copyOf(collectedFixedQuery),
+					commentOf(method)
 			));
 		}
 
@@ -150,12 +150,12 @@ class ContractIntrospector {
 	}
 
 	private void collectParameters(
-		ExecutableElement method, ExecutableType mirror, HttpBinding binding,
-		Consumer<Declaration.Parameter> collectParameters,
-		Consumer<Declaration.FixedQuery> collectFixedQuery) {
+			ExecutableElement method, ExecutableType mirror, HttpBinding binding,
+			Consumer<Declaration.Parameter> collectParameters,
+			Consumer<Declaration.FixedQuery> collectFixedQuery) {
 
-		// here we don't check if, for example, request entity is compatible with certain HTTP
-		// method.
+		// here we don't check if, for example, request entity is compatible
+		// with certain HTTP method.
 		var mappedParameterNames = new HashSet<String>();
 
 		var uriParameters = binding.template.parameters;
@@ -190,7 +190,7 @@ class ContractIntrospector {
 					mapping = Declaration.Parameter.Mapping.Body;
 				} else {
 					error("Unmapped parameter '%s', cannot have more than one request body"
-						.formatted(name), p);
+							.formatted(name), p);
 					mapping = Declaration.Parameter.Mapping.Unmapped;
 				}
 				httpName = "";
@@ -198,16 +198,16 @@ class ContractIntrospector {
 
 			var type = new Type.Mirror(parameterTypes.get(index));
 			collectParameters.accept(new Declaration.Parameter(
-				name, httpName, index, type, mapping,
-				commentOf(p)));
+					name, httpName, index, type, mapping,
+					commentOf(p)));
 		}
 
 		for (var u : uriParameters.keySet()) {
 			if (!mappedParameterNames.contains(u)) {
 				var leftover = uriParameters.get(u);
 				collectFixedQuery.accept(new Declaration.FixedQuery(
-					leftover.httpName(),
-					leftover.value()));
+						leftover.httpName(),
+						leftover.value()));
 			}
 		}
 	}
@@ -269,7 +269,7 @@ class ContractIntrospector {
 	}
 
 	private HttpBinding extractHttpBinding(
-		KnownAnnotations annotations, ExecutableElement method, String pathPrefix) {
+			KnownAnnotations annotations, ExecutableElement method, String pathPrefix) {
 
 		@Null Declaration.HttpMethod httpMethod = null;
 		@Null PathTemplate template = null;
@@ -280,7 +280,7 @@ class ContractIntrospector {
 
 				if (httpMethod != null) {
 					error("Multiple HTTP method annotations are not allowed: %s, but already was %s"
-						.formatted(simpleName, httpMethod.name()), method);
+							.formatted(simpleName, httpMethod.name()), method);
 					continue;
 				}
 
@@ -301,8 +301,9 @@ class ContractIntrospector {
 		}
 
 		if (httpMethod == null) {
-			error("No HTTP method annotation is found on '%s'".formatted(method.getSimpleName()),
-				method);
+			error(("No HTTP method annotation is found on '%s'. " +
+							"Use one of @GET, @POST, @PUT etc.").formatted(method.getSimpleName()),
+					method);
 			// This bogus method value is just to continue processing after error was reported
 			// model will be considered invalid anyway
 			httpMethod = Declaration.HttpMethod.GET;
