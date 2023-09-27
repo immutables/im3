@@ -1,4 +1,4 @@
-package io.immutables.regres.coding;
+package io.immutables.regres;
 
 import io.immutables.codec.NameIndex;
 import io.immutables.codec.Out;
@@ -8,7 +8,7 @@ import java.util.HashMap;
 import java.util.Map;
 import static java.util.Objects.requireNonNull;
 
-final class PreparedStatementOut extends Out {
+public final class PreparedStatementOut extends Out {
 	private static final Object MASKED_NULL = new Object();
 
 	private enum SpreadState {
@@ -27,14 +27,14 @@ final class PreparedStatementOut extends Out {
 		this.parameterIndex = parameterIndex;
 	}
 
-	@Null Object get(String name) throws IOException {
+	public @Null Object get(String name) throws IOException {
 		Object v = values.get(name);
 		if (v == null) unexpected("No value for placeholder :" + name);
 		if (v == MASKED_NULL) return null;
 		return v;
 	}
 
-	void spread(String prefix) {
+	public void spread(String prefix) {
 		spreading = SpreadState.Expect;
 		this.prefix = prefix;
 	}

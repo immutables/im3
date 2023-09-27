@@ -44,7 +44,7 @@ final class EnumCodec<E extends Enum<E>> extends CaseCodec<E, In, Out> implement
 		if (f >= 0) return constants[f];
 		else if (defaultConstant != null) return defaultConstant;
 		// if no default, we declare instance failed
-		in.wasInstanceFailed();
+		in.failInstance();
 		return null;
 	}
 
@@ -56,7 +56,7 @@ final class EnumCodec<E extends Enum<E>> extends CaseCodec<E, In, Out> implement
 		return defaultConstant != null;
 	}
 
-	public boolean mayConform(In in) throws IOException {
+	boolean mayConform(In in) throws IOException {
 		if (names == null) names = in.index(constantNames);
 		if (in.peek() == In.At.String) {
 			return in.takeString(names) >= 0;

@@ -10,7 +10,7 @@ import java.nio.file.Path;
 import java.util.List;
 
 @Generator
-public abstract class Gradles extends Template {
+abstract class Gradles extends Template {
 	final FilesStencil files = new FilesStencil();
 
 	ProvidingModule dep(String name, ModuleInfo forModule) {

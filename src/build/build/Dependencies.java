@@ -44,13 +44,20 @@ public class Dependencies {
 
 	public static Set<ProvidingModule> nestedOf(String name) {
 		var prefix = name + ".";
+		var module = get(name);
+		if (module instanceof SourceModule s) return definitions.values()
+				.stream()
+				.filter(m -> m.name().startsWith(prefix))
+				.collect(toUnmodifiableSet());
+		return Set.of();
+		/* FIXME
 		return switch (get(name)) {
 			case SourceModule s -> definitions.values()
 				.stream()
 				.filter(m -> m.name().startsWith(prefix))
 				.collect(toUnmodifiableSet());
 			default -> Set.of();
-		};
+		};*/
 	}
 
 	public static Collection<ProvidingModule> nestedOf(SourceModule module) {

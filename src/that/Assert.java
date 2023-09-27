@@ -21,9 +21,14 @@ public final class Assert {
 	 * @param actualRuns runnable or lambda
 	 * @return that runnable
 	 */
-	public static That.AssertedRunnable that(Runnable actualRuns) {
-		class Tested extends That.What<Runnable, That.AssertedRunnable> implements That.AssertedRunnable {}
+	public static That.AssertedRunnable that(CanThrow actualRuns) {
+		class Tested extends That.What<CanThrow, That.AssertedRunnable>
+				implements That.AssertedRunnable {}
 		return new Tested().set(actualRuns);
+	}
+
+	public interface CanThrow {
+		void run() throws Exception;
 	}
 
 	/**
@@ -75,6 +80,36 @@ public final class Assert {
 	public static <T> That.AssertedIterable<T> that(T... actual) {
 		class Tested extends That.What<Iterable<T>, That.AssertedIterable<T>> implements That.AssertedIterable<T> {}
 		return new Tested().set(Arrays.asList(actual));
+	}
+
+	/**
+	 * @param actual array object
+	 * @return that iterable
+	 */
+	public static That.AssertedIterable<Integer> that(int[] actual) {
+		class Tested extends That.What<Iterable<Integer>,
+				That.AssertedIterable<Integer>> implements That.AssertedIterable<Integer> {}
+		return new Tested().set(Arrays.stream(actual).boxed().toList());
+	}
+
+	/**
+	 * @param actual array object
+	 * @return that iterable
+	 */
+	public static That.AssertedIterable<Long> that(long[] actual) {
+		class Tested extends That.What<Iterable<Long>,
+				That.AssertedIterable<Long>> implements That.AssertedIterable<Long> {}
+		return new Tested().set(Arrays.stream(actual).boxed().toList());
+	}
+
+	/**
+	 * @param actual array object
+	 * @return that iterable
+	 */
+	public static That.AssertedIterable<Double> that(double[] actual) {
+		class Tested extends That.What<Iterable<Double>,
+				That.AssertedIterable<Double>> implements That.AssertedIterable<Double> {}
+		return new Tested().set(Arrays.stream(actual).boxed().toList());
 	}
 
 	/**

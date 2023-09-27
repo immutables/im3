@@ -1,5 +1,6 @@
 package io.immutables.stencil.template;
 
+import io.immutables.meta.Late;
 import io.immutables.stencil.Current;
 import io.immutables.stencil.Generator;
 import io.immutables.stencil.Stencil;
@@ -20,7 +21,7 @@ import javax.tools.StandardLocation;
 // Since we require records, it's appropriate be safe to require LTS release 17
 @SupportedSourceVersion(SourceVersion.RELEASE_17)
 public class Processor extends AbstractProcessor {
-	private ProcessingCurrent current;
+	private @Late ProcessingCurrent current;
 
 	@Override public synchronized void init(ProcessingEnvironment processing) {
 		super.init(processing);
@@ -81,13 +82,6 @@ public class Processor extends AbstractProcessor {
 						emitter.generateStub(packageName, generatorName, List.of(stackTrace));
 						continue;
 					}
-/*
-					try {
-						FileObject resource = processingEnv.getFiler()
-							.getResource(StandardLocation.CLASS_PATH, "",
-								packageName.replace('.', '/') + '/' + templateName);
-						content = resource.getCharContent(false);
-					} catch (IOException fromClassPath) {}*/
 				}
 
 				var parser = new BrainDeadParser(content.toString().toCharArray());
@@ -106,8 +100,8 @@ public class Processor extends AbstractProcessor {
 			}
 
 		} catch (Throwable e) {
+			e.printStackTrace();
 			error(e + "\n" + toStackTraceString(e));
-
 		}
 		// Regardless of what other processors might want, we claim our trigger.
 		// it's very specialized, no need to overthink it

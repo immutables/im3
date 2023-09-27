@@ -24,6 +24,7 @@ interface Ver {
 	String Jackson = "2.14.2";
 	String Guava = "31.1-jre";
 	String Spring = "6.0.9";
+	String Postgres = "42.6.0";
 }
 
 interface Build {
@@ -60,6 +61,9 @@ interface Build {
 		);
 		module("spring.web", a -> a
 			.classes("org.springframework:spring-web", Ver.Spring)
+		);
+		module("org.postgresql.jdbc", a -> a
+			.classes("org.postgresql:postgresql", Ver.Postgres)
 		);
 
 		vendor();

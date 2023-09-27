@@ -1,6 +1,8 @@
 package io.immutables.codec;
 
 import io.immutables.meta.Null;
+import io.immutables.meta.NullUnknown;
+
 import java.io.IOException;
 import java.lang.reflect.Type;
 import java.util.NoSuchElementException;
@@ -29,7 +31,7 @@ public abstract class Codec<T, I extends In, O extends Out> {
 	/**
 	 * Decodes an instance {@code null} return value is reserved for those cases.
 	 */
-	public abstract @Null T decode(I in) throws IOException;
+	public abstract @NullUnknown T decode(I in) throws IOException;
 
 	public interface Resolver {
 		<T, I extends In, O extends Out>

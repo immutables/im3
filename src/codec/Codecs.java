@@ -63,19 +63,17 @@ public class Codecs {
 		}
 
 		public Number asNumber() {
-			return switch (value) {
-				case null -> throw new NullPointerException();
-				case Number n -> n;
-				default -> Double.valueOf(value.toString());
-			};
+			@Null var v = value;
+			if (v == null) throw new NullPointerException();
+			if (v instanceof Number n) return n;
+			return Double.valueOf(v.toString());
 		}
 
 		public boolean asBoolean() {
-			return switch (value) {
-				case null -> throw new NullPointerException();
-				case Boolean b -> b;
-				default -> Boolean.parseBoolean(value.toString());
-			};
+			@Null var v = value;
+			if (v == null) throw new NullPointerException();
+			if (v instanceof Boolean b) return b;
+			return Boolean.parseBoolean(v.toString());
 		}
 
 		public boolean isNull() {
@@ -128,35 +126,31 @@ public class Codecs {
 		}
 
 		public boolean takeBoolean() {
-			return switch (value) {
-				case null -> throw new NullPointerException();
-				case Boolean b -> b;
-				default -> Boolean.parseBoolean(value.toString());
-			};
+			@Null var v = value;
+			if (v == null) throw new NullPointerException();
+			if (v instanceof Boolean b) return b;
+			return Boolean.parseBoolean(v.toString());
 		}
 
 		public double takeDouble() {
-			return switch (value) {
-				case null -> throw new NullPointerException();
-				case Number n -> n.doubleValue();
-				default -> Double.parseDouble(value.toString());
-			};
+			@Null var v = value;
+			if (v == null) throw new NullPointerException();
+			if (v instanceof Number n) return n.doubleValue();
+			return Double.parseDouble(v.toString());
 		}
 
 		public long takeLong() {
-			return switch (value) {
-				case null -> throw new NullPointerException();
-				case Number n -> n.longValue();
-				default -> Long.parseLong(value.toString());
-			};
+			@Null var v = value;
+			if (v == null) throw new NullPointerException();
+			if (v instanceof Number n) return n.longValue();
+			return Long.parseLong(v.toString());
 		}
 
 		public int takeInt() {
-			return switch (value) {
-				case null -> throw new NullPointerException();
-				case Number n -> n.intValue();
-				default -> Integer.parseInt(value.toString());
-			};
+			@Null var v = value;
+			if (v == null) throw new NullPointerException();
+			if (v instanceof Number n) return n.intValue();
+			return Integer.parseInt(v.toString());
 		}
 	}
 

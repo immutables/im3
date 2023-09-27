@@ -1,11 +1,10 @@
+package io.immutables.common.test;
 
-package io.immutables.stencil.test;
-
-import io.immutables.stencil.Glob;
+import io.immutables.common.Glob;
 import org.junit.Test;
 import static io.immutables.that.Assert.that;
 
-public class GlobTest {
+public class TestGlob {
 	@Test public void anyDirsFull() {
 		var g = Glob.of("**");
 		that().is(g.matches(""));

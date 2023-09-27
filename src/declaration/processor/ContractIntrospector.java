@@ -317,5 +317,5 @@ class ContractIntrospector {
 		return datatypes.commentOf(element);
 	}
 
-	public static final String TYPE_RETURNS = "io.immutables.declaration.http.Returns";
+	private static final String TYPE_RETURNS = "io.immutables.declaration.http.Returns";
 }

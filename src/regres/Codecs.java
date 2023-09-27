@@ -42,7 +42,7 @@ public final class Codecs {
 
 		public Jsons<T> decode(In in) throws IOException {
 			try (var p = factory.createParser(in.takeString())) {
-				return new Jsons<T>(codec.decode(new JsonParserIn(p)));
+				return new Jsons<>(codec.decode(new JsonParserIn(p)));
 			}
 		}
 

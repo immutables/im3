@@ -27,28 +27,26 @@ subprojects {
 	}
 
 	compileJava {
-		options.compilerArgs += '--enable-preview'
+		// options.compilerArgs += '--enable-preview'
 	}
 
 	tasks.withType(JavaCompile).configureEach {
-		options.compilerArgs += '--enable-preview'
+		//options.compilerArgs += '--enable-preview'
 		options.compilerArgs += '-parameters'
 		options.incremental = true
 	}
 
 	tasks.withType(Test).configureEach {
-		jvmArgs += '--enable-preview'
+		//jvmArgs += '--enable-preview'
 	}
 
 	tasks.withType(JavaExec).configureEach {
-		jvmArgs += '--enable-preview'
+		//jvmArgs += '--enable-preview'
 	}
 
 	tasks.withType(Javadoc).configureEach {
-		def javadocOptions = options as CoreJavadocOptions
-
-		javadocOptions.addStringOption('-release', "$javaVersion")
-		javadocOptions.addBooleanOption('-enable-preview', true)
+		options.addStringOption('-release', "$javaVersion")
+		//javadocOptions.addBooleanOption('-enable-preview', true)
 	}
 
 	copy {

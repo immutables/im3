@@ -1,6 +1,8 @@
 package io.immutables.declaration.processor;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Function;
 import javax.lang.model.type.TypeMirror;
 
 public sealed interface Type {

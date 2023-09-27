@@ -1,6 +1,7 @@
 package io.immutables.stencil.template;
 
-import io.immutables.stencil.Source;
+import io.immutables.meta.Late;
+import io.immutables.common.Source;
 import io.immutables.meta.Null;
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -258,12 +259,12 @@ class BrainDeadParser {
 		final List<Templating.Content> content = new ArrayList<>();
 		private int fragmentBegin;
 
-		public void acceptReturn(Templating.Content child) {
+		void acceptReturn(Templating.Content child) {
 			content.add(child);
 			scanner = this;
 		}
 
-		public void acceptReturn(Collection<? extends Templating.Content> children) {
+		void acceptReturn(Collection<? extends Templating.Content> children) {
 			content.addAll(children);
 			scanner = this;
 		}
@@ -333,6 +334,7 @@ class BrainDeadParser {
 					p = to;
 				}
 			} else if (tag.equals("void")) {
+				assert scanner != null;
 				scanner = parseVoid(scanner, from, to);
 			} else if (tag.equals(":")) {
 				proceed(from, to, ":");
@@ -469,7 +471,7 @@ class BrainDeadParser {
 		private final TemplateScanner parent;
 		private final List<Templating.For.Clause> clauses = new ArrayList();
 
-		public ForScanner(TemplateScanner parent, int from, int to) {
+		ForScanner(TemplateScanner parent, int from, int to) {
 			super(from, to);
 			this.parent = parent;
 		}
@@ -556,7 +558,7 @@ class BrainDeadParser {
 		private final TemplateScanner parent;
 		private @Null String letName;
 
-		public LetScanner(TemplateScanner parent, int from, int to) {
+		LetScanner(TemplateScanner parent, int from, int to) {
 			super(from, to);
 			this.parent = parent;
 		}
@@ -583,7 +585,7 @@ class BrainDeadParser {
 		private final StringBuilder condition;
 		boolean wasElse;
 
-		public CompactIfScanner(TemplateScanner parent, int from, int to,
+		CompactIfScanner(TemplateScanner parent, int from, int to,
 			StringBuilder condition) {
 			super(from, to);
 			this.parent = parent;
@@ -627,7 +629,7 @@ class BrainDeadParser {
 		private boolean wasElse = false;
 		private @Null StringBuilder condition;
 
-		public IfScanner(TemplateScanner parent, int from, int to) {
+		IfScanner(TemplateScanner parent, int from, int to) {
 			super(from, to);
 			this.parent = parent;
 		}
@@ -680,7 +682,7 @@ class BrainDeadParser {
 	class VoidScanner extends TemplateScanner {
 		private final TemplateScanner parent;
 
-		public VoidScanner(TemplateScanner parent, int from, int to) {
+		VoidScanner(TemplateScanner parent, int from, int to) {
 			super(from, to);
 			this.parent = parent;
 		}
@@ -712,7 +714,7 @@ class BrainDeadParser {
 		int eitherFrom = NOPE;
 		int elseFrom = NOPE;
 
-		public CaseScanner(TemplateScanner parent, int from, int to,
+		CaseScanner(TemplateScanner parent, int from, int to,
 			StringBuilder expression) {
 			super(from, to);
 			this.parent = parent;
@@ -935,10 +937,10 @@ class BrainDeadParser {
 	public static final char END = '\0';
 
 	private void accept(char c) {
-		requireNonNull(consumer).accept(c);
+		consumer.accept(c);
 	}
 
-	private @Null Consumer consumer;
+	private @Late Consumer consumer;
 
 	private void nonTemplate() {
 		var content = new StringBuilder();
@@ -970,8 +972,8 @@ class BrainDeadParser {
 	public static void main(String[] args) throws IOException {
 		String content;
 		String filename = "Gen.generator";
-		try (var is = BrainDeadParser.class.getResourceAsStream(filename);
-			var br = new BufferedReader(new InputStreamReader(requireNonNull(is)))) {
+		try (var is = requireNonNull(BrainDeadParser.class.getResourceAsStream(filename));
+			var br = new BufferedReader(new InputStreamReader(is))) {
 			content = br.lines().collect(Collectors.joining("\n"));
 		}
 

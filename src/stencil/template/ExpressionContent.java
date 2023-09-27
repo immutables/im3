@@ -187,7 +187,7 @@ class ExpressionContent {
 		System.out.println(ExpressionContent.expandAccessors("""
 			ff; hh
 			aa.bb .cc(). ddd .
-			ooo() *   """, "aa"::equals));
+			ooo() *""", "aa"::equals));
 
 		var bc = new ExpressionContent("""
 			aa:: <TypeOf.Int az>

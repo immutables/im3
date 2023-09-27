@@ -1,5 +1,6 @@
 package io.immutables.stencil;
 
+import io.immutables.common.Glob;
 import io.immutables.meta.Null;
 import java.io.IOException;
 import java.io.UncheckedIOException;

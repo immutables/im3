@@ -8,6 +8,9 @@ import java.lang.reflect.WildcardType;
 import java.util.*;
 import static java.util.Objects.requireNonNull;
 
+/**
+ * Deals with generic types: parameters, arguments, parameterized {@link Type}s.
+ */
 public final class Types {
 	private Types() {}
 
@@ -82,14 +85,16 @@ public final class Types {
 		return ((ParameterizedType) type).getActualTypeArguments()[0];
 	}
 
+	public static Type getSecondArgument(Type type) {
+		return ((ParameterizedType) type).getActualTypeArguments()[1];
+	}
+
 	public static Class<?> toRawType(Type type) {
-		return switch (type) {
-			case Class<?> c -> c;
-			case ParameterizedType p -> (Class<?>) p.getRawType();
-			case TypeVariable<?> v -> toRawType(v.getBounds()[0]);
-			case WildcardType w -> toRawType(w.getUpperBounds()[0]);
-			default -> throw new IllegalArgumentException("No raw type for " + type);
-		};
+		if (type instanceof Class<?> c) return c;
+		if (type instanceof ParameterizedType p) return (Class<?>) p.getRawType();
+		if (type instanceof TypeVariable<?> v) return toRawType(v.getBounds()[0]);
+		if (type instanceof WildcardType w) return toRawType(w.getUpperBounds()[0]);
+		throw new IllegalArgumentException("No raw type for " + type);
 	}
 
 	public static Map<TypeVariable<?>, Type> mapArgumentsInHierarchy(Class<?> raw) {
@@ -216,7 +221,6 @@ public final class Types {
 		}
 
 		void collect(Class<?> raw, Type type) {
-			// just to make it more resilient for future changes
 			if (raw == Object.class) return;
 
 			if (seen.add(raw)) {

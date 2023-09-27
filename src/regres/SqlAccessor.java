@@ -7,9 +7,10 @@ import java.lang.annotation.Target;
 
 public interface SqlAccessor {
 	/**
-	 * Applicable to int, long, int[], long[]. When non-array form is used, the returned cound will be
-	 * the sum of all update counts where multiple update counts could be returned for either multiple
-	 * statements in snipped or when using batch statement execution.
+	 * Applicable to int, long, int[], long[]. When non-array form is used,
+	 * the returned cound will be the sum of all update counts where multiple
+	 * update counts could be returned for either multiple statements in
+	 * snipped or when using batch statement execution.
 	 */
 	@Retention(RetentionPolicy.RUNTIME)
 	@Target(ElementType.METHOD)
@@ -28,8 +29,9 @@ public interface SqlAccessor {
 		 */
 		boolean optional() default false;
 		/**
-		 * Would take first result row and ignore the rest of records. If this is {@code false} (the
-		 * default) it would be an error to receive more than one record.
+		 * Would take first result row and ignore the rest of records.
+		 * If this is {@code false} (the default) it would be an error
+		 * to receive more than one record.
 		 */
 		boolean ignoreMore() default false;
 	}
@@ -42,7 +44,8 @@ public interface SqlAccessor {
 	@interface Column {
 		/**
 		 * Column name (column label in result set) to extract. When not empty, this takes precedence
-		 * over {@link #index()}, which defaults to the first (0) column.
+		 * over {@link #index()}, which defaults to the first (0) column. This should match
+		 * the expected DB column naming format, regardless of any object-field naming conventions.
 		 */
 		String value() default "";
 		/**
@@ -85,5 +88,5 @@ public interface SqlAccessor {
 		String prefix() default "";
 	}
 
-	ConnectionProvider.ConnectionHandle connection();
+	ConnectionProvider.Handle handle();
 }

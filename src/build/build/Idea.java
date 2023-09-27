@@ -405,10 +405,14 @@ public interface Idea {
 	}
 
 	static Path compiledModulePath(ProvidingModule module) {
+/* FIXME
 		return switch (module) {
 			case SourceModule sm -> classesOutputOf(sm);
 			case VendorModule vm -> Dirs.vendored(vm.name());
-		};
+		};*/
+		if (module instanceof SourceModule sm) return classesOutputOf(sm);
+		if (module instanceof VendorModule vm) return Dirs.vendored(vm.name());
+		throw new UnsupportedOperationException();
 	}
 
 	private static Path classesOutputOf(SourceModule m) {

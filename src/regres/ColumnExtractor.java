@@ -1,4 +1,4 @@
-package io.immutables.regres.coding;
+package io.immutables.regres;
 
 import io.immutables.codec.Codec;
 import io.immutables.codec.In;

@@ -86,7 +86,7 @@ public interface That<T, S extends That<T, S>> {
 		 *  that().unreachable();
 		 * } catch (Exception ex) {
 		 * </pre>
-		 * @see Assert#that(java.lang.Runnable)
+		 * @see Assert#that(Assert.CanThrow)
 		 */
 		default void unreachable() {
 			throw What.newAssertionError("expected unreachable", "...and yet we are here");
@@ -94,7 +94,7 @@ public interface That<T, S extends That<T, S>> {
 	}
 
 	/** That runnable or lambda/block. */
-	interface AssertedRunnable extends That<java.lang.Runnable, AssertedRunnable> {
+	interface AssertedRunnable extends That<Assert.CanThrow, AssertedRunnable> {
 		/**
 		 * Fails if that runnable doesn't throw a Throwable of the expected type
 		 * (or a subtype) when called.
@@ -103,7 +103,7 @@ public interface That<T, S extends That<T, S>> {
 		 */
 		default <E extends Throwable> AssertedObject<E> thrown(Class<E> thrownType) {
 			try {
-				java.lang.Runnable runnable = What.get(this);
+				var runnable = What.get(this);
 				runnable.run();
 			} catch (Throwable throwable) {
 				if (thrownType.isInstance(throwable)) {

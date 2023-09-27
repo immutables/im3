@@ -136,9 +136,9 @@ class Emitter extends Stencil.Raw {
 	}
 
 	private void renderSpread(LocalScope scope, Spread s) {
-		var spreadElementId = generateIdentifier("e");
-		var iterationCounterId = generateIdentifier("i");
-		var iterationNumberFinal = generateIdentifier("f");
+		var spreadElementId = newIdentifier("e");
+		var iterationCounterId = newIdentifier("i");
+		var iterationNumberFinal = newIdentifier("f");
 		var spreadScope = scope.extend("...");
 		spreadScope.substitutions.put("#", iterationNumberFinal);
 		ifln();
@@ -158,8 +158,8 @@ class Emitter extends Stencil.Raw {
 		ifln();
 		int bracesToClose = 0;
 
-		var iterationCounterId = generateIdentifier("i");
-		var iterationNumberFinal = generateIdentifier("fi");
+		var iterationCounterId = newIdentifier("i");
+		var iterationNumberFinal = newIdentifier("fi");
 		var forScope = scope.extend(":for");
 		forScope.substitutions.put("#", iterationNumberFinal);
 		put("{int ", iterationCounterId, "=0;");
@@ -260,7 +260,7 @@ class Emitter extends Stencil.Raw {
 		put("});__.$(()->", b.expression().expand(scope1), ");}").ln();
 	}
 
-	private String generateIdentifier(String base) {
+	private String newIdentifier(String base) {
 		return "__" + base + idCounter.getAndIncrement();
 	}
 

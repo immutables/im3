@@ -69,6 +69,4 @@ public class ObjectMapperCodecs implements Codec.Factory<In, Out> {
 			}
 		};
 	}
-
-
 }

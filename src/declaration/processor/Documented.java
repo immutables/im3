@@ -12,9 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 //
-@NonnullByDefault
-@CheckReturnByDefault
-package io.immutables.regres.coding;
+package io.immutables.declaration.processor;
 
-import io.immutables.meta.CheckReturnByDefault;
-import io.immutables.meta.NonnullByDefault;
+/**
+ * Element which can have documentation comment. Even if implemented,
+ * the comment can be empty (either actually empty or not documented), for the model,
+ * these too are equivalent.
+ */
+// cannot be nested into declaration
+public interface Documented {
+	String comment();
+}

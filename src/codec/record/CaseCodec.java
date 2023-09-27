@@ -17,5 +17,5 @@ abstract class CaseCodec<T, I extends In, O extends Out> extends DefaultingCodec
 	 * consumed. This can help arranging nested checks. For when we about to return {@code false},
 	 * it would be not that important, and we can leave buffered input partially consumed/broken.
 	 */
-	public boolean mayConform(I in) throws IOException {return false;}
+	boolean mayConform(I in) throws IOException {return false;}
 }

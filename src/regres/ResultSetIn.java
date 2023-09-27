@@ -1,4 +1,4 @@
-package io.immutables.regres.coding;
+package io.immutables.regres;
 
 import io.immutables.codec.In;
 import io.immutables.codec.NameIndex;
@@ -9,7 +9,10 @@ import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.util.Arrays;
 
-abstract class ResultSetIn extends In {
+import static com.fasterxml.jackson.core.JsonTokenId.ID_NO_TOKEN;
+import static com.fasterxml.jackson.core.JsonTokenId.ID_STRING;
+
+public class ResultSetIn extends In {
 	private final ResultSet results;
 	private final int columnCount;
 	private final String[] names;
@@ -44,9 +47,35 @@ abstract class ResultSetIn extends In {
 		if (currentNames != names) {
 			currentNames = names;
 			for (int i = 0; i < indexes.length; i++) {
-				indexes[i] = names.index(this.names[i]);
+				String columnLabel = this.names[i];
+				// first trying to map verbatim column names
+				int index = names.index(columnLabel);
+				if (index == NameIndex.UNKNOWN) {
+					index = names.index(snakeToCamel(columnLabel));
+				}
+				indexes[i] = index;
 			}
 		}
+	}
+
+	private static String snakeToCamel(String columnLabel) {
+		var builder = new StringBuilder();
+		boolean capitalizeNext = false;
+		for (int i = 0; i < columnLabel.length(); i++) {
+			char c = columnLabel.charAt(i);
+			c = capitalizeNext
+					? Character.toUpperCase(c)
+					: Character.toLowerCase(c);
+
+			if (c == '_') {
+				capitalizeNext = true;
+				// skipping _ character
+			} else {
+				capitalizeNext = false;
+				builder.append(c);
+			}
+		}
+		return builder.toString();
 	}
 
 	@Override
@@ -88,15 +117,16 @@ abstract class ResultSetIn extends In {
 
 	private void typeValue() {
 		Object v = values[atColumn];
-		peek = switch (v) {
-			case null -> At.Null;
-			case Long l -> At.Long;
-			case Integer i -> At.Int;
-			case Number n -> At.Float;
-			case Boolean b -> v == Boolean.TRUE ? At.True : At.False;
-			case String s -> At.String;
-			default -> At.Special;
-		};
+		At peek;
+		if (v == null) peek = At.Null;
+		else if (v instanceof Integer) peek = At.Int;
+		else if (v instanceof Long) peek = At.Long;
+		else if (v instanceof Number) peek = At.Float;
+		else if (v instanceof Boolean b) peek = b == Boolean.TRUE ? At.True : At.False;
+		else if (v instanceof String s) peek = At.String;
+		else peek = At.Special;
+
+		this.peek = peek;
 	}
 
 	@Override
@@ -240,5 +270,21 @@ abstract class ResultSetIn extends In {
 	private <V> V unexpected(String message, V substitute) throws IOException {
 		unexpected(message);
 		return substitute;
+	}
+
+
+	@Override
+	public Buffer takeBuffer() throws IOException {
+		throw new UnsupportedOperationException("yet");
+	}
+
+	@Override
+	public NameIndex index(String... known) {
+		return NameIndex.known(known);
+	}
+
+	@Override
+	public int takeString(NameIndex names) throws IOException {
+		return names.index(takeString());
 	}
 }

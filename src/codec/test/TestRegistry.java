@@ -59,7 +59,7 @@ public class TestRegistry {
 		return new Codec<>() {
 			public void encode(Out out, Object instance) {}
 
-			@Null public Object decode(In in) {return null;}
+			public @Null Object decode(In in) {return null;}
 		};
 	}
 

@@ -2,7 +2,6 @@ package io.immutables.build;
 
 import io.immutables.build.build.Dependencies;
 import io.immutables.build.build.SourceModule;
-import io.immutables.build.build.Sources;
 import io.immutables.stencil.Current;
 import io.immutables.stencil.Directory;
 import java.io.File;
@@ -21,6 +20,7 @@ interface Ver {
 	String Jackson = "2.14.2";
 	String Guava = "31.1-jre";
 	String Spring = "6.0.9";
+	String Postgres = "42.6.0";
 }
 
 public class Release {
@@ -57,6 +57,9 @@ public class Release {
 		module("spring.web", a -> a
 			.classes("org.springframework:spring-web", Ver.Spring)
 		);
+		module("org.postgresql.jdbc", a -> a
+			.classes("org.postgresql:postgresql", Ver.Postgres)
+		);
 
 		scanSources("src");
 		Dependencies.resolve();
@@ -64,8 +67,10 @@ public class Release {
 		var published = List.of(
 			"meta",
 			"that",
+			"common",
 			"codec",
 			"codec.jackson",
+			"regres",
 			"stencil",
 			"stencil.template",
 			"declaration",

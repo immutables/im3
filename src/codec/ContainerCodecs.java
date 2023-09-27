@@ -4,6 +4,7 @@ import io.immutables.meta.Null;
 import java.io.IOException;
 import java.lang.reflect.Array;
 import java.util.*;
+import java.util.function.Function;
 
 // TODO handle failed instance
 final class ContainerCodecs {
@@ -15,7 +16,9 @@ final class ContainerCodecs {
 		return null;
 	};
 
-	private final static class OptionalCodec<T> extends DefaultingCodec<Optional<T>, In, Out> {
+	private final static class OptionalCodec<T>
+			extends DefaultingCodec<Optional<T>, In, Out>
+			implements RemapContainerCodec {
 		private final Codec<T, In, Out> codec;
 
 		OptionalCodec(Codec<T, In, Out> codec) {
@@ -46,6 +49,14 @@ final class ContainerCodecs {
 
 		public boolean providesDefault() {
 			return true;
+		}
+
+		@SuppressWarnings("unchecked")
+		@Override
+		public Codec<Object, In, Out> remap(
+				Function<Codec<Object, In, Out>, Codec<Object, In, Out>> replacer) {
+			var element = replacer.apply((Codec<Object, In, Out>) codec);
+			return (Codec<Object, In, Out>) (Object) new OptionalCodec<Object>(element);
 		}
 	}
 
@@ -97,6 +108,7 @@ final class ContainerCodecs {
 		}
 	};
 
+
 	private static final Codec<OptionalDouble, In, Out> optionalDoubleCodec = new DefaultingCodec<>() {
 		public void encode(Out out, OptionalDouble instance) throws IOException {
 			if (instance.isEmpty()) out.putNull();
@@ -121,7 +133,9 @@ final class ContainerCodecs {
 		}
 	};
 
-	private static final class ListCodec extends DefaultingCodec<Object, In, Out> {
+	private static final class ListCodec
+			extends DefaultingCodec<Object, In, Out>
+			implements RemapContainerCodec, Expecting {
 		private final Codec<Object, In, Out> elementCodec;
 
 		ListCodec(Codec<Object, In, Out> elementCodec) {
@@ -146,16 +160,28 @@ final class ContainerCodecs {
 			return List.copyOf(buffer);
 		}
 
-		public Object getDefault() {
+		@Override public Object getDefault() {
 			return List.of();
 		}
 
-		public boolean providesDefault() {
+		@Override public boolean providesDefault() {
 			return true;
+		}
+
+		@Override public boolean expects(In.At first) {
+			return first == In.At.Array;
+		}
+
+		@Override
+		public Codec<Object, In, Out> remap(
+				Function<Codec<Object, In, Out>, Codec<Object, In, Out>> replacer) {
+			return new ListCodec(replacer.apply(elementCodec));
 		}
 	}
 
-	private static final class SetCodec extends DefaultingCodec<Object, In, Out> {
+	private static final class SetCodec
+			extends DefaultingCodec<Object, In, Out>
+	 		implements RemapContainerCodec, Expecting {
 		private final Codec<Object, In, Out> elementCodec;
 
 		SetCodec(Codec<Object, In, Out> elementCodec) {
@@ -189,9 +215,22 @@ final class ContainerCodecs {
 		public boolean providesDefault() {
 			return true;
 		}
+
+		@Override
+		public boolean expects(In.At first) {
+			return first == In.At.Array;
+		}
+
+		@Override
+		public Codec<Object, In, Out> remap(
+				Function<Codec<Object, In, Out>, Codec<Object, In, Out>> replacer) {
+			return new ListCodec(replacer.apply(elementCodec));
+		}
 	}
 
-	private static final class ArrayCodec extends Codec<Object, In, Out> {
+	private static final class ArrayCodec
+			extends Codec<Object, In, Out>
+			implements Expecting {
 		private final Class<?> componentType;
 		private final Codec<Object, In, Out> componentCodec;
 
@@ -230,6 +269,62 @@ final class ContainerCodecs {
 		public Object defaultInstance() {
 			return Array.newInstance(componentType, 0);
 		}
+
+		@Override
+		public boolean expects(In.At first) {
+			return first == In.At.Array;
+		}
+	}
+
+	private static final class MapCodec
+			extends DefaultingCodec<Object, In, Out>
+			implements Expecting {
+		private final Codec<Object, In, Out> keyCodec;
+		private final Codec<Object, In, Out> valueCodec;
+
+		MapCodec(Codec<Object, In, Out> keyCodec, Codec<Object, In, Out> valueCodec) {
+			this.keyCodec = keyCodec;
+			this.valueCodec = valueCodec;
+		}
+
+		public void encode(Out out, Object instance) throws IOException {
+			var keyOut = new Codecs.CaptureSimpleOut();
+			out.beginStruct(out.index());
+			for (var e : ((Map<?, ?>) instance).entrySet()) {
+				keyCodec.encode(keyOut, e.getKey());
+				out.putField(keyOut.asString());
+				valueCodec.encode(out, e.getValue());
+			}
+			out.endStruct();
+		}
+
+		public @Null Object decode(In in) throws IOException {
+			var keyIn = new Codecs.RetrieveSimpleIn();
+			var buffer = new HashMap<>();
+			in.beginStruct(in.index());
+			while (in.hasNext()) {
+				in.takeField(); // ignore field code
+				keyIn.reset(in.name()); // use name read
+				var key = keyCodec.decode(keyIn);
+				var value = valueCodec.decode(in);
+				buffer.put(key, value);
+			}
+			in.endStruct();
+			return Map.copyOf(buffer);
+		}
+
+		public Object getDefault() {
+			return Map.of();
+		}
+
+		public boolean providesDefault() {
+			return true;
+		}
+
+		@Override
+		public boolean expects(In.At first) {
+			return first == In.At.Struct;
+		}
 	}
 
 	public static Class<?>[] classes() {
@@ -237,7 +332,7 @@ final class ContainerCodecs {
 	}
 
 	private static final Class<?>[] classes = {
-		List.class, Set.class,
+		List.class, Set.class, Map.class,
 		Optional.class, OptionalInt.class, OptionalLong.class, OptionalDouble.class
 	};
 
@@ -250,6 +345,11 @@ final class ContainerCodecs {
 		if (raw == Set.class) {
 			var elementType = Types.getFirstArgument(type);
 			return new SetCodec(lookup.get(elementType));
+		}
+		if (raw == Map.class) {
+			var keyType = Types.getFirstArgument(type);
+			var valueType = Types.getSecondArgument(type);
+			return new MapCodec(lookup.get(keyType), lookup.get(valueType));
 		}
 		if (raw == Optional.class) {
 			var elementType = Types.getFirstArgument(type);

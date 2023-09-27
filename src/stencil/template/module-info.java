@@ -3,6 +3,7 @@ module io.immutables.stencil.template {
 
 	// These 2 are for annotations, but cannot be static as we need those
 	// classes at annotation processor runtime
+	requires io.immutables.common;
 	requires io.immutables.meta;
 	requires io.immutables.stencil;
 	//	requires io.immutables.codec;

@@ -5,17 +5,20 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-// cannot be nested into declaration
-interface Documented {
-	String comment();
-}
-
 /**
  * Declaration represent type as defined, not how it's used or referenced.
  * These are only for nominal types, user-defined and maybe some synthetic)
  * and not for builtin primitives.
  */
 public sealed interface Declaration extends Documented {
+	/**
+	 * Symbolic reference to a Declaration, which needs to be resolved/de-referenced
+	 * to a real declaration. We use it to marshall and pass declarations around by-reference.
+	 */
+	record Reference(
+			String module,
+			String name) {}
+
 	Reference reference();
 
 	default String name() {
@@ -30,13 +33,15 @@ public sealed interface Declaration extends Documented {
 		List<Type.Variable> parameters();
 	}
 
+	sealed interface Datatype extends Declaration {}
+
 	record Inline(
 		Tag inline,
 		Reference reference,
 		List<Type.Variable> parameters,
 		Component component,
 		String comment
-	) implements Declaration, Parameterizable {
+	) implements Datatype, Parameterizable {
 		public enum Tag {Is}
 	}
 
@@ -46,7 +51,7 @@ public sealed interface Declaration extends Documented {
 		List<Type.Variable> parameters,
 		List<Component> components,
 		String comment
-	) implements Declaration, Parameterizable {
+	) implements Datatype, Parameterizable {
 		public enum Tag {Is}
 		public Product {
 			assert components.size() >= 2;
@@ -57,7 +62,7 @@ public sealed interface Declaration extends Documented {
 		Tag enums,
 		Reference reference,
 		List<Constant> constants,
-		String comment) implements Declaration {
+		String comment) implements Datatype {
 		public enum Tag {Is}
 		record Constant(String name) {}
 	}
@@ -68,7 +73,7 @@ public sealed interface Declaration extends Documented {
 		List<Type.Variable> parameters,
 		List<Component> components,
 		String comment
-	) implements Declaration, Parameterizable {
+	) implements Datatype, Parameterizable {
 		public enum Tag {Is}
 	}
 
@@ -78,7 +83,7 @@ public sealed interface Declaration extends Documented {
 		List<Type.Variable> parameters,
 		List<Declaration> cases,
 		String comment
-	) implements Declaration, Parameterizable {
+	) implements Datatype, Parameterizable {
 		public enum Tag {Is}
 	}
 
@@ -144,12 +149,4 @@ public sealed interface Declaration extends Documented {
 		PATCH,
 		OPTIONS
 	}
-
-	/**
-	 * Symbolic reference to a Declaration, which needs to be resolved/de-referenced
-	 * to a real declaration. We use it to marshall and pass declarations around by-reference.
-	 */
-	record Reference(
-		String module,
-		String name) {}
 }
