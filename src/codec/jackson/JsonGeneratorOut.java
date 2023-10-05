@@ -6,7 +6,7 @@ import java.io.IOException;
 import java.util.Arrays;
 import com.fasterxml.jackson.core.JsonGenerator;
 
-public class JsonGeneratorOut extends Out {
+public final class JsonGeneratorOut extends Out {
 	final JsonGenerator generator;
 
 	public JsonGeneratorOut(JsonGenerator generator) {

@@ -3,7 +3,7 @@ package io.immutables.codec;
 import java.io.IOException;
 
 // TODO complete proper handling of mismatch and validation
-abstract class CanHaveProblems {
+abstract class InOutBase {
 	public abstract String path() throws IOException;
 
 	public abstract In.At peek() throws IOException;
@@ -34,5 +34,6 @@ abstract class CanHaveProblems {
 		return b;
 	}
 
+	@Deprecated // no use?
 	public boolean hasProblems() {return false;}
 }

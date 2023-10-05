@@ -8,9 +8,9 @@ import java.lang.annotation.Target;
 public interface SqlAccessor {
 	/**
 	 * Applicable to int, long, int[], long[]. When non-array form is used,
-	 * the returned cound will be the sum of all update counts where multiple
+	 * the returned count will be the sum of all update counts where multiple
 	 * update counts could be returned for either multiple statements in
-	 * snipped or when using batch statement execution.
+	 * snippet or when using batch statement execution.
 	 */
 	@Retention(RetentionPolicy.RUNTIME)
 	@Target(ElementType.METHOD)

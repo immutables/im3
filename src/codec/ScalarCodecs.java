@@ -25,11 +25,11 @@ final class ScalarCodecs {
 		codecs.put(float.class, floatCodec);
 		codecs.put(Boolean.class, booleanCodec);
 		codecs.put(boolean.class, booleanCodec);
-		codecs.put(void.class, voidCodec);
 		codecs.put(Void.class, voidCodec);
-
+		codecs.put(void.class, voidCodec);
 		codecs.put(String.class, new StringCodec());
 	}
+
 	private static final Class<?>[] classes = codecs.keySet().toArray(new Class<?>[0]);
 
 	public static Class<?>[] classes() {
@@ -43,7 +43,7 @@ final class ScalarCodecs {
 			out.putString(s);
 		}
 
-		public @Null String decode(In in) throws IOException {
+		public String decode(In in) throws IOException {
 			return in.takeString();
 		}
 
@@ -57,7 +57,7 @@ final class ScalarCodecs {
 			out.putInt(i);
 		}
 
-		public @Null Integer decode(In in) throws IOException {
+		public Integer decode(In in) throws IOException {
 			return in.takeInt();
 		}
 
@@ -74,7 +74,7 @@ final class ScalarCodecs {
 			out.putLong(i);
 		}
 
-		public @Null Long decode(In in) throws IOException {
+		public Long decode(In in) throws IOException {
 			return in.takeLong();
 		}
 
@@ -91,7 +91,7 @@ final class ScalarCodecs {
 			out.putDouble(d);
 		}
 
-		public @Null Double decode(In in) throws IOException {
+		public Double decode(In in) throws IOException {
 			return in.takeDouble();
 		}
 
@@ -108,7 +108,7 @@ final class ScalarCodecs {
 			out.putDouble((double) d);
 		}
 
-		public @Null Float decode(In in) throws IOException {
+		public Float decode(In in) throws IOException {
 			return (float) in.takeDouble();
 		}
 
@@ -125,7 +125,7 @@ final class ScalarCodecs {
 			out.putBoolean(b);
 		}
 
-		public @Null Boolean decode(In in) throws IOException {
+		public Boolean decode(In in) throws IOException {
 			return in.takeBoolean();
 		}
 

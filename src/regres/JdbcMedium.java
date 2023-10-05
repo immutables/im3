@@ -7,7 +7,7 @@ import io.immutables.codec.Out;
 public final class JdbcMedium {
 	private JdbcMedium() {}
 
-	public static final Medium<ResultSetIn, PreparedStatementOut> Jdbc = new Medium<>() {
+	public static final Medium<ResultIn, StatementOut> Jdbc = new Medium<>() {
 		public String toString() {
 			return JdbcMedium.class.getSimpleName();
 		}

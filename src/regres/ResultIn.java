@@ -7,15 +7,17 @@ import java.io.IOException;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
+import java.sql.Types;
 import java.util.Arrays;
 
-import static com.fasterxml.jackson.core.JsonTokenId.ID_NO_TOKEN;
-import static com.fasterxml.jackson.core.JsonTokenId.ID_STRING;
-
-public class ResultSetIn extends In {
+/**
+ * Structured codec input read from JDBC result set.
+ */
+public class ResultIn extends In {
 	private final ResultSet results;
 	private final int columnCount;
 	private final String[] names;
+	private final int[] types;
 	private final Object[] values;
 	private final int[] indexes;
 
@@ -23,20 +25,23 @@ public class ResultSetIn extends In {
 	private int atRow = -1;
 	private int atColumn = -1;
 	private @Null String currentName;
+	private int currentType = Types.OTHER;
 
 	// Will not close result set
-	ResultSetIn(ResultSet results) throws SQLException {
+	ResultIn(ResultSet results) throws SQLException {
 		this.results = results;
-		ResultSetMetaData meta = results.getMetaData();
+		var meta = results.getMetaData();
 		columnCount = meta.getColumnCount();
 
 		names = new String[columnCount];
 		values = new Object[columnCount];
+		types = new int[columnCount];
 		indexes = new int[columnCount];
 		Arrays.fill(indexes, NameIndex.UNKNOWN);
 
 		for (int i = 0; i < columnCount; i++) {
 			names[i] = meta.getColumnLabel(i + 1);
+			types[i] = meta.getColumnType(i + 1);
 		}
 	}
 
@@ -58,6 +63,7 @@ public class ResultSetIn extends In {
 		}
 	}
 
+	// should we use CaseFormat (from common)
 	private static String snakeToCamel(String columnLabel) {
 		var builder = new StringBuilder();
 		boolean capitalizeNext = false;
@@ -116,6 +122,7 @@ public class ResultSetIn extends In {
 	}
 
 	private void typeValue() {
+		currentType = types[atColumn];
 		Object v = values[atColumn];
 		At peek;
 		if (v == null) peek = At.Null;
@@ -136,6 +143,14 @@ public class ResultSetIn extends In {
 		currentName = names[atColumn];
 		typeValue();
 		return field;
+	}
+
+	/**
+	 * Get sql type, call before taking column
+	 * @see java.sql.Types
+	 */
+	public int sqlType() {
+		return currentType;
 	}
 
 	public String name() throws IOException {
@@ -178,7 +193,7 @@ public class ResultSetIn extends In {
 		return s;
 	}
 
-	public Object takeSpecial() throws IOException {
+	public Object takeSpecial() {
 		Object v = values[atColumn];
 		advanceColumn();
 		return v;

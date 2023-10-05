@@ -1,6 +1,6 @@
 package io.immutables.regres.test;
 
-import io.immutables.regres.Jsons;
+import io.immutables.codec.Jsons;
 
 import java.util.List;
 

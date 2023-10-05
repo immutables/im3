@@ -4,11 +4,16 @@ import io.immutables.codec.NameIndex;
 import io.immutables.codec.Out;
 import io.immutables.meta.Null;
 import java.io.IOException;
+import java.sql.PreparedStatement;
+import java.sql.SQLException;
+import java.sql.Timestamp;
+import java.time.Instant;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import static java.util.Objects.requireNonNull;
 
-public final class PreparedStatementOut extends Out {
+public final class StatementOut extends Out {
 	private static final Object MASKED_NULL = new Object();
 
 	private enum SpreadState {
@@ -23,16 +28,11 @@ public final class PreparedStatementOut extends Out {
 	private String parameter = "";
 	private @Null NameIndex spreadingIndex;
 
-	PreparedStatementOut(NameIndex parameterIndex) {
+	StatementOut(NameIndex parameterIndex) {
 		this.parameterIndex = parameterIndex;
 	}
 
-	public @Null Object get(String name) throws IOException {
-		Object v = values.get(name);
-		if (v == null) unexpected("No value for placeholder :" + name);
-		if (v == MASKED_NULL) return null;
-		return v;
-	}
+	private record TypedValue(int sqlType, @Null Object value) {}
 
 	public void spread(String prefix) {
 		spreading = SpreadState.Expect;
@@ -105,6 +105,10 @@ public final class PreparedStatementOut extends Out {
 		values.put(parameter, b);
 	}
 
+	public void putSpecial(int sqlType, @Null Object value) {
+		values.put(parameter, new TypedValue(sqlType, value));
+	}
+
 	public void putSpecial(Object o) {
 		values.put(parameter, o);
 	}
@@ -134,5 +138,24 @@ public final class PreparedStatementOut extends Out {
 
 	private void unexpected(String message) throws IOException {
 		throw new IOException(message);
+	}
+
+	void fillStatement(
+			PreparedStatement statement,
+			List<String> placeholders) throws SQLException, IOException {
+		int i = 1;
+		for (String name : placeholders) {
+			@Null Object v = values.get(name);
+			if (v == null) unexpected("No value for placeholder :" + name);
+			if (v == MASKED_NULL) {
+				// do we need setNull with specific JDBC type?
+				statement.setObject(i, null);
+			} else if (v instanceof TypedValue typed) {
+				statement.setObject(i, typed.value, typed.sqlType);
+			} else {
+				statement.setObject(i, v);
+			}
+			i++;
+		}
 	}
 }

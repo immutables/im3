@@ -16,9 +16,9 @@ import static java.util.Objects.checkFromToIndex;
 import static java.util.Objects.requireNonNull;
 
 /**
- * Minimalistic wrapper around immutable array. We use it over ImmutableList because we want monomorphic call sites, no
- * unsupported mutation methods, minimum memory overhead, no views, have simplistic pattern matching capability and
- * short classname.
+ * Minimalistic wrapper around immutable array. We use it over ImmutableList because
+ * we want monomorphic call sites, no unsupported mutation methods, minimum memory
+ * overhead, no views, have simplistic pattern matching capability and short classname.
  * @param <E> element type
  */
 @SuppressWarnings("unchecked")
@@ -249,7 +249,7 @@ public final class Vect<E> implements Iterable<E>, Foldable<E> {
 	}
 
 	public E last() {
-		if (isEmpty()) throw new NoSuchElementException("first()");
+		if (isEmpty()) throw new NoSuchElementException("last()");
 		return (E) elements[elements.length - 1];
 	}
 
@@ -296,7 +296,8 @@ public final class Vect<E> implements Iterable<E>, Foldable<E> {
 	}
 
 	public String join(String separator, String prefix, String suffix) {
-		return stream().map(Object::toString).collect(Collectors.joining(separator, prefix, suffix));
+		return stream().map(Object::toString)
+				.collect(Collectors.joining(separator, prefix, suffix));
 	}
 
 	public Vect<E> concat(Vect<? extends E> v) {
@@ -322,7 +323,7 @@ public final class Vect<E> implements Iterable<E>, Foldable<E> {
 	}
 
 	public E[] toArray(IntFunction<E[]> factory) {
-		return toArray(factory.apply(elements.length)); // some microbenchmarks recomment 0?
+		return toArray(factory.apply(elements.length));
 	}
 
 	public static <E> Vect<E> of(E single) {

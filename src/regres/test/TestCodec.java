@@ -2,10 +2,11 @@ package io.immutables.regres.test;
 
 import io.immutables.codec.Medium;
 import io.immutables.codec.Registry;
+import io.immutables.codec.jackson.EmbeddedJson;
 import io.immutables.codec.record.RecordsFactory;
 import io.immutables.codec.test.CodecFixture;
-import io.immutables.regres.Codecs;
-import io.immutables.regres.Jsons;
+import io.immutables.regres.JdbcCodecs;
+import io.immutables.codec.Jsons;
 import java.io.IOException;
 import org.junit.Test;
 import static io.immutables.that.Assert.that;
@@ -13,7 +14,7 @@ import static io.immutables.that.Assert.that;
 public class TestCodec extends CodecFixture {
 	private final Registry registry = new Registry.Builder()
 		.add(new RecordsFactory())
-		.add(Codecs.jsonsFactory(jsonFactory), Medium.Any, Jsons.class)
+		.add(EmbeddedJson.using(jsonFactory), Medium.Any, Jsons.class)
 		.build();
 
 	public record Abc(

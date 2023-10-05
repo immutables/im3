@@ -1,6 +1,6 @@
 --.createTable
 
-drop table if exists bu;
+drop table if exists bu cascade;
 create table bu(a int, b text, c jsonb);
 
 --.insertValues
@@ -102,4 +102,24 @@ select 'A' as a_a, 'B' as b_b_b, 3 as c_cc;
 --.selectBuRecords
 select * from bu;
 
+--.createTypes
 
+drop table if exists types cascade;
+create table if not exists types(
+  id uuid not null primary key,
+  dt timestamptz not null,
+	ts timestamp not null,
+  jb jsonb not null
+);
+
+--.insertTypes
+
+insert into types(id, dt, ts, jb) values (:id, :dt, :ts, :jb::jsonb);
+
+--.readUuid
+
+select id from types;
+
+--.readFancyTypes
+
+select * from types;

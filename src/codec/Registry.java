@@ -12,7 +12,7 @@ import static io.immutables.codec.Types.requireSpecific;
 import static java.util.Objects.requireNonNull;
 
 /**
- * Codec registry, which is a main/reference implementation of {@link Codec.Resolver}.
+ * Codec registry, which is a main reference implementation of {@link Codec.Resolver}.
  * Unlikely that any other implementation of {@code Code.Resolver} will exist
  * or will be needed, aside from any interceptors/proxies.
  */
@@ -54,12 +54,16 @@ public class Registry implements Codec.Resolver {
 		this.factoriesCatchAll = catchAll;
 	}
 
+	/**
+	 * Same as {@link #resolve(Type, Medium)}, but with more convenience and type safety
+	 * for non-generic types.
+	 */
 	public <T, I extends In, O extends Out>
 	Optional<Codec<T, I, O>> resolve(Class<? extends T> type, Medium<I, O> medium) {
 		return resolve((Type) type, medium);
 	}
 
-	public <T, I extends In, O extends Out>
+	@Override public <T, I extends In, O extends Out>
 	Optional<Codec<T, I, O>> resolve(Type type, Medium<I, O> medium) {
 		requireNonNull(medium);
 		if (medium == Medium.Any) throw new IllegalArgumentException(
@@ -74,21 +78,33 @@ public class Registry implements Codec.Resolver {
 		// Lookup callback used from within codec factories/codecs to lookup
 		// codecs they delegate to for their fields etc.
 		Codec.Lookup<I, O> lookup = new Codec.Lookup<>() {
-			public <W> Codec<W, I, O> get(Type t) {
-				assert isRewrapped(t); // assert because these calls can be made by "indecent" codecs
-				@Null Codec<W, I, O> codec = resolve(t, medium, this);
+			public <W> Codec<W, I, O> get(Type type) {
+				assert isRewrapped(type); // assert because these calls can be made by "indecent" codecs
+				@Null Codec<W, I, O> codec = Registry.this.resolve(type, medium, this);
 				if (codec != null) return codec;
 				// fallback codec used only to delegate from Codec.Lookup
 				// externally we will not resolve these
 				@SuppressWarnings("unchecked") // TODO explain safety
-				@Null Codec<W, I, O> fallbackCodec = resolve(t, (Medium<I, O>) Fallback, this);
+				@Null Codec<W, I, O> fallbackCodec =
+						Registry.this.resolve(type, (Medium<I, O>) Fallback, this);
 				if (fallbackCodec != null) return fallbackCodec;
-				throw new NoSuchElementException("No such codec for type " + t);
+				throw new NoSuchElementException("No such codec for type " + type);
+			}
+
+			@Override
+			public <W, IN extends In, OUT extends Out> Optional<Codec<W, IN, OUT>> resolve(
+					Type type, Medium<IN, OUT> medium) {
+				return Registry.this.resolve(type, medium);
 			}
 		};
 		return Optional.ofNullable(resolve(type, medium, lookup));
 	}
 
+	// holds thread local context, called Nesting which is used to detect
+	// and resolve cycles when recursive data structures are used
+	// such resolution will either succeed or we will have runtime exception
+	// either as codecs not found during resolution
+	// or during decoding-encoding (if used out-of-band)
 	private static final ThreadLocal<Nesting> resolutionNesting = new ThreadLocal<>();
 
 	// this class instance is accessed by only one thread,
@@ -126,6 +142,7 @@ public class Registry implements Codec.Resolver {
 
 		try {
 			@Null var forType = nesting.byType.get(type);
+			// are we looking for this type already (recursive cycle)?
 			if (forType != null) {
 				// creating and returning and instance of deferred assumes that the codec
 				// for type is present, otherwise we wouldn't have any cycles/recursion.
@@ -135,19 +152,19 @@ public class Registry implements Codec.Resolver {
 				// instance lazily
 				var deferred = new Deferred<T, I, O>(type, lookup);
 				forType.deferred.add(deferred);
-				// and we do not memoise it!
+				// deferred instance is separate for each requester, we don't cache it!
 				return deferred;
 			}
 
 			// we're starting fresh lookup with no cycles in sight
-			// and so any possible cycle will have deferred codec returned
+			// and so any possible cycle will have deferred codec returned: see above
 			forType = new Nesting.ForType();
 			nesting.byType.put(type, forType);
 
 			Class<?> raw = Types.toRawType(type);
 
 			class FactoryMatcher {
-				@Null Codec<T, I, O> codec;
+				@Null Codec<T, I, O> created;
 
 				void tryCreateWith(List<Entry> entries, Medium<?, ?> medium) {
 					for (var e : entries) {
@@ -157,50 +174,58 @@ public class Registry implements Codec.Resolver {
 							// by any, factories working with Any medium are able to handle
 							// medium with I, O subclasses
 							var factory = (Codec.Factory<I, O>) e.factory;
-							codec = (Codec<T, I, O>) factory.tryCreate(
+							created = (Codec<T, I, O>) factory.tryCreate(
 								type, raw, (Medium<I, O>) medium, lookup);
 
-							if (codec != null) break;
+							if (created != null) break;
 						}
 					}
 				}
 			}
 
+			// this matcher instance will be used to call tryCreateWith
+			// and will hold result in its `created` field.
 			var matcher = new FactoryMatcher();
 
 			try {
 				@Null var factoryByType = factoriesByType.get(raw);
 				if (factoryByType != null) {
+					// trying for the specific medium
 					matcher.tryCreateWith(factoryByType, medium);
-					if (matcher.codec == null) {
+					// trying for any medium
+					if (matcher.created == null) {
 						matcher.tryCreateWith(factoryByType, Medium.Any);
 					}
-
-					if (matcher.codec != null) {
-						memoisedCodecs.put(memoKey, matcher.codec);
-						return matcher.codec;
+					// if created matching codec, we memoise it and return
+					if (matcher.created != null) {
+						memoisedCodecs.put(memoKey, matcher.created);
+						return matcher.created;
 					}
 				} else {
+					// we only have non-type specific codecs here,
+					// so we just try for specific and then any medium
 					matcher.tryCreateWith(factoriesCatchAll, medium);
-					if (matcher.codec == null) {
+					if (matcher.created == null) {
 						matcher.tryCreateWith(factoriesCatchAll, Medium.Any);
 					}
-
-					if (matcher.codec != null) {
-						memoisedCodecs.put(memoKey, matcher.codec);
-						return matcher.codec;
+					// if created matching codec, we memoise it and return
+					if (matcher.created != null) {
+						memoisedCodecs.put(memoKey, matcher.created);
+						return matcher.created;
 					}
 				}
+				// nothing found
 				return null;
 			} finally {
 				// here we actualize deferred instances to avoid lazy lookups from deferred
-				if (matcher.codec != null) {
+				if (matcher.created != null) {
 					for (var d : forType.deferred) {
 						// this would not throw as just assigning references
-						((Deferred<T, I, O>) d).setActual(matcher.codec);
+						((Deferred<T, I, O>) d).setActual(matcher.created);
 					}
 				}
-				// and removing entry, since we've added it
+				// we've fulfilled any deferred proxies,
+				// so we can remove this nesting entry
 				nesting.byType.remove(type);
 			}
 		} finally {
@@ -232,6 +257,7 @@ public class Registry implements Codec.Resolver {
 		private Codec<T, I, O> actual() {
 			if (actual == null) {
 				assert lookup != null;
+				// will throw NoSuchElementException if not found and called out of band
 				setActual(lookup.get(type));
 				assert actual != null;
 			}
@@ -240,10 +266,14 @@ public class Registry implements Codec.Resolver {
 
 		void setActual(Codec<T, I, O> actual) {
 			this.actual = actual;
-			this.lookup = null; // not sure that this helps much, but it will release that context lookup
+			// not sure that this helps much, but it will release that context lookup
+			this.lookup = null;
 		}
 	}
 
+	/**
+	 * Collects factories and configuration to build an instance of {@link Registry}.
+	 */
 	public static final class Builder {
 		private final List<Entry> entries = new ArrayList<>();
 		private boolean useBuiltin = true;
@@ -254,16 +284,25 @@ public class Registry implements Codec.Resolver {
 
 		public <I extends In, O extends Out> Builder add(
 			Codec.Factory<I, O> factory, Medium<I, O> medium, Class<?>... rawTypes) {
+			if (rawTypes.length == 0 && factory instanceof Codec.SupportedTypes s) {
+				rawTypes = s.supportedRawTypes().toArray(new Class<?>[0]);
+			}
 			entries.add(new Entry(factory, medium, rawTypes));
 			return this;
 		}
 
 		public <T> Builder add(
-			Function<T, String> toString, Function<String, T> fromString, Class<? extends T> type) {
+			Function<T, String> toString,
+			Function<String, T> fromString,
+			Class<? extends T> type) {
+
 			var codec = FromToStringCodec.from(toString, fromString, type);
+			var classes = new Class<?>[] { codec.rawClass() };
+
 			entries.add(new Entry(
 				(t, r, m, l) -> r == type ? codec : null,
-				Medium.Any, codec.classes()));
+					Medium.Any, classes));
+
 			return this;
 		}
 

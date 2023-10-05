@@ -1,21 +1,25 @@
-package io.immutables.regres;
+package io.immutables.codec.jackson;
 
+import com.fasterxml.jackson.core.JsonFactory;
 import io.immutables.codec.*;
-import io.immutables.codec.jackson.JsonGeneratorOut;
-import io.immutables.codec.jackson.JsonParserIn;
+
 import java.io.IOException;
 import java.io.StringWriter;
 import java.lang.reflect.Type;
-import com.fasterxml.jackson.core.JsonFactory;
 
-public final class Codecs {
-	private Codecs() {}
+public final class EmbeddedJson {
+	private EmbeddedJson() {}
 
-	public static Codec.Factory<In, Out> jsonsFactory(JsonFactory factory) {
+	public static Codec.Factory<In, Out> using(JsonFactory factory) {
 		return (type, raw, medium, lookup) -> {
 			if (raw == Jsons.class) {
 				var argument = Types.getFirstArgument(type);
-				return new JsonsCodec<>(argument, lookup.get(argument), factory);
+				// switch medium for embedded Json
+				var codec = lookup.resolve(argument, Medium.Json);
+				if (codec.isPresent()) {
+					return new JsonsCodec<Object>(argument, codec.get(), factory);
+				}
+				return null;
 			}
 			return null;
 		};

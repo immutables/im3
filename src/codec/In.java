@@ -1,9 +1,8 @@
 package io.immutables.codec;
 
 import java.io.IOException;
-import java.lang.reflect.Type;
 
-public abstract class In extends CanHaveProblems {
+public abstract class In extends InOutBase {
 	public enum At {
 		Null,
 		Int,

@@ -1,13 +1,16 @@
 package io.immutables.regres.test;
 
-import io.immutables.regres.Jsons;
+import io.immutables.codec.Jsons;
 import io.immutables.regres.SqlAccessor;
 
 import java.io.IOException;
 import java.sql.SQLException;
+import java.time.Instant;
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 
 public interface Sample extends SqlAccessor {
 	@UpdateCount
@@ -73,17 +76,34 @@ public interface Sample extends SqlAccessor {
 	@UpdateCount
 	int[] insertBatchSpread(@Spread Map<String, String> m, @Named("b") @Batch int... values) throws SQLException;
 
-	void dropTableForBatch() throws SQLException;
+	void dropTableForBatch();
 
 	@Column
-	List<String> selectFromBatch() throws SQLException;
+	List<String> selectFromBatch();
 
   @Single
   @Column
-  String insertAndGetJsonb(@Named("map") Jsons<Map<String, Integer>> map) throws SQLException;
+  String insertAndGetJsonb(@Named("map") Jsons<Map<String, Integer>> map);
 
 	@Single
-	AaBbCcc selectAutoNamingConvention() throws SQLException;
+	AaBbCcc selectAutoNamingConvention();
 
-	List<Bu> selectBuRecords() throws SQLException;
+	List<Bu> selectBuRecords();
+
+	void createTypes();
+
+	void insertTypes(@Spread FancyTypes types);
+
+	@Column
+	List<UUID> readUuid();
+
+	@Single
+	FancyTypes readFancyTypes();
+
+	record FancyTypes(
+			UUID id,
+			OffsetDateTime dt,
+			Instant ts,
+			Jsons<String> jb
+	) {}
 }

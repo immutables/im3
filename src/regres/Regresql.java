@@ -11,8 +11,6 @@ import java.lang.reflect.*;
 import java.nio.charset.StandardCharsets;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
-import java.sql.Timestamp;
-import java.time.Instant;
 import java.util.*;
 import java.util.Map.Entry;
 import java.util.regex.Matcher;
@@ -30,7 +28,6 @@ import static java.util.stream.Collectors.joining;
  * are used to lead sections of SQL which corresponds to specific methods in Java interface.
  */
 // TODO Transactions/Control handle/with lambda
-// TODO Exception improvements/consistency
 // TODO GetGeneratedKeys (maybe someday)
 public final class Regresql {
 	private Regresql() {}
@@ -138,7 +135,7 @@ public final class Regresql {
 		if (!accessor.isInterface()
 				|| accessor.getCanonicalName() == null
 				|| !SqlAccessor.class.isAssignableFrom(accessor)) {
-			throw new IllegalArgumentException(
+			throw new WrongDeclaration(
 					"%s is not valid SQL access interface (top level interface extending %s)"
 							.formatted(accessor, SqlAccessor.class));
 		}
@@ -179,7 +176,7 @@ public final class Regresql {
 		builder.returnType = returnType;
 
 		if (updateCount != null && (column != null || single != null))
-			throw new IllegalStateException(
+			throw new WrongDeclaration(
 				"@UpdateCount and (@Column extraction or @Single result) cannot be used together on "
 						+ method);
 
@@ -188,7 +185,7 @@ public final class Regresql {
 			&& returnType != int[].class
 			&& returnType != long.class
 			&& returnType != long[].class) {
-			throw new IllegalStateException(
+			throw new WrongDeclaration(
 				"@UpdateCount requires return type int, int[], long, or long[] on " + method);
 		}
 
@@ -199,12 +196,12 @@ public final class Regresql {
 
 		boolean useBatch = determineBatchParameter(builder);
 
-		if (useBatch && !returnUpdateCount) throw new IllegalStateException(
+		if (useBatch && !returnUpdateCount) throw new WrongDeclaration(
 				"@Batch requires returning @UpdateCount or void return type" + method);
 
 		if (!returnUpdateCount) {
 			var maybeCodec = codecs.resolve(returnType, JdbcMedium.Internal);
-			if (maybeCodec.isEmpty()) throw new IllegalStateException(
+			if (maybeCodec.isEmpty()) throw new WrongDeclaration(
 					"No JDBC codec registered for return type %s in method %s"
 							.formatted(returnType, method));
 
@@ -215,7 +212,7 @@ public final class Regresql {
 					codec = new ColumnExtractor(codec, column);
 				} else if (codec instanceof RemapContainerCodec remapping) {
 					codec = remapping.remap(element -> new ColumnExtractor(element, column));
-				} else throw new IllegalStateException(
+				} else throw new WrongDeclaration(
 					"@Column can only be used with @Single for " + method + ". " +
 							"The codec for " + returnType + " is not known to support such extraction " +
 							"(a ContainerCodec can)");
@@ -259,7 +256,7 @@ public final class Regresql {
 
 			boolean hasName = p.isNamePresent();
 
-			if (spread == null && named == null && !hasName) throw new IllegalArgumentException(
+			if (spread == null && named == null && !hasName) throw new WrongDeclaration(
 				"Parameter #" + i + " of "
 					+ m.getDeclaringClass() + "." + methodName(m)
 					+ " must have @Named annotation. (unless @Spread)");
@@ -274,15 +271,14 @@ public final class Regresql {
 					type = raw.getComponentType();
 				} else if (Iterable.class.isAssignableFrom(raw)) {
 					type = Types.getFirstArgument(type);
-				} else throw new IllegalStateException(
+				} else throw new WrongDeclaration(
 					"@Batch parameter must an Iterable or an array, but was " + type);
 			}
 
 			var codec = codecs.resolve(type, JdbcMedium.Internal);
 
-			if (codec.isEmpty()) {
-				throw new IllegalStateException("No JDBC codec can be obtained for " + type);
-			}
+			if (codec.isEmpty()) throw new WrongDeclaration(
+					"No JDBC codec can be obtained for " + type);
 
 			{
 				var name = named != null ? named.value() : p.getName();
@@ -292,14 +288,14 @@ public final class Regresql {
 				var profile = new ParameterProfile(name, useBatch, spreadWith, codec.get(), type);
 
 				@Null var existing = builder.parametersByName.put(name, profile);
-				if (existing != null) throw new IllegalStateException(
+				if (existing != null) throw new WrongDeclaration(
 						"Method parameters have duplicate names, check @Named annotations: " + name);
 
 				builder.parameters.add(profile);
 			}
 		}
 
-		if (batchCount > 1) throw new IllegalStateException(
+		if (batchCount > 1) throw new WrongDeclaration(
 			"@Batch should not be present on more than one parameter on " + m);
 	}
 
@@ -333,7 +329,7 @@ public final class Regresql {
 				MethodSnippet snippet = snippets.get(name);
 				MethodProfile profile = profiles.get(name);
 
-				if (snippet == null) throw new AssertionError("SQL method not defined: " + name);
+				assert profile != null;
 
 				try (
 						var handle = provider.handle();
@@ -341,7 +337,7 @@ public final class Regresql {
 					prepareStatement(statement, profile, snippet, arguments);
 					return executeStatement(statement, profile);
 				} catch (SQLException sqlException) {
-					throw Errors.refineException(source, method, snippet, sqlException);
+					throw Exceptions.refineException(source, method, snippet, sqlException);
 				}
 			}
 		};
@@ -360,7 +356,7 @@ public final class Regresql {
 		Object[] args) throws SQLException, IOException {
 
 		var parameters = profile.parameters();
-		PreparedStatementOut out = new PreparedStatementOut(profile.parameterIndex());
+		var out = new StatementOut(profile.parameterIndex());
 
 		if (profile.batchParameter().isPresent()) {
 			int batchIndex = profile.batchParameter().getAsInt();
@@ -374,55 +370,36 @@ public final class Regresql {
 			if (batch instanceof Iterable<?>) {
 				for (Object o : (Iterable<?>) batch) {
 					putArgument(out, batcher, batchIndex, o);
-					fillStatement(statement, snippet.placeholders(), out);
+					out.fillStatement(statement, snippet.placeholders());
 					statement.addBatch();
 				}
-			} else {
-				assert batch.getClass().isArray();
+			} else if (batch.getClass().isArray()) {
 				int length = Array.getLength(batch);
 				for (int i = 0; i < length; i++) {
-					Object o = Array.get(batch, i);
-					putArgument(out, batcher, batchIndex, o);
-					fillStatement(statement, snippet.placeholders(), out);
+					Object value = Array.get(batch, i);
+					putArgument(out, batcher, batchIndex, value);
+					out.fillStatement(statement, snippet.placeholders());
 					statement.addBatch();
 				}
-			}
+			} else throw new WrongDeclaration(
+					"Batch parameter should be Iterable or an array");
+
 		} else {
 			for (int i = 0; i < parameters.size(); i++) {
 				putArgument(out, parameters.get(i), i, args[i]);
 			}
-			fillStatement(statement, snippet.placeholders(), out);
+			out.fillStatement(statement, snippet.placeholders());
 		}
 	}
 
-	private static void putArgument(PreparedStatementOut out, ParameterProfile p, int index,
-		Object value)
+	private static void putArgument(StatementOut out, ParameterProfile p, int index,
+																	Object value)
 		throws IOException {
 		out.putField(index);
 		if (p.spread().isPresent()) {
 			out.spread(p.spread().get());
 		}
 		p.codec().encode(out, value);
-	}
-
-	private static void fillStatement(
-		PreparedStatement statement,
-		List<String> placeholders,
-		PreparedStatementOut out) throws SQLException, IOException {
-		int i = 1;
-		for (String p : placeholders) {
-			@Null Object value = out.get(p);
-			if (value instanceof Instant) {
-				// Experimental, only for instant for now
-				// TODO move to a codec for JdbcMedia?
-				statement.setTimestamp(i, new Timestamp(((Instant) value).toEpochMilli()));
-			} else {
-				// this also covers null case for us,
-				// do we need setNull with specific JDBC type?
-				statement.setObject(i, value);
-			}
-			i++;
-		}
 	}
 
 	private static SqlSource loadSqlSource(Class<?> accessorInterface) throws AssertionError {
@@ -501,7 +478,7 @@ public final class Regresql {
 			}
 		}
 
-		if (!problems.isEmpty()) throw new RuntimeException(
+		if (!problems.isEmpty()) throw new WrongDeclaration(
 			"\n" + problems.stream().map(Object::toString).collect(joining("\n")));
 
 		return Map.copyOf(unique);
@@ -520,7 +497,7 @@ public final class Regresql {
 				.toList();
 
 		if (!duplicates.isEmpty()) {
-			throw new IllegalArgumentException(
+			throw new WrongDeclaration(
 					"Method overloads are not supported for %s: %s. Please use distinct names"
 							.formatted(accessorInterface, duplicates));
 		}
@@ -727,7 +704,7 @@ public final class Regresql {
 				if (voidUpdateCount) {
 					returnValue = null;
 				} else if (largeUpdateCount) { // long update count
-					List<Long> updates = new ArrayList<>();
+					var updates = new ArrayList<Long>();
 					for (long count; ; ) {
 						count = statement.getLargeUpdateCount();
 						if (count >= 0) {
@@ -742,7 +719,7 @@ public final class Regresql {
 						returnValue = updates.stream().mapToLong(l -> l).toArray();
 					}
 				} else { // int update count
-					List<Integer> updates = new ArrayList<>();
+					var updates = new ArrayList<Integer>();
 					for (int count; ; ) {
 						count = statement.getUpdateCount();
 						if (count >= 0) {
@@ -757,7 +734,7 @@ public final class Regresql {
 						returnValue = updates.stream().mapToInt(l -> l).toArray();
 					}
 				}
-			} else { // reading result set (not update count)
+			} else { // reading result set (not an update count)
 				// for the return type, the codec must be present at this point, so AssertionError
 				var codec = profile.returnTypeCodec().orElseThrow(AssertionError::new);
 
@@ -766,7 +743,7 @@ public final class Regresql {
 				returnValue = null; // cannot use clean branching below, have to initialize early
 
 				if (hasResultSet) {
-					var in = new ResultSetIn(statement.getResultSet());
+					var in = new ResultIn(statement.getResultSet());
 					returnValue = codec.decode(in);
 					wasResultSet = true;
 				}
@@ -777,19 +754,19 @@ public final class Regresql {
 					hasResultSet = statement.getMoreResults();
 
 					if (hasResultSet) {
-						if (wasResultSet) throw new IllegalStateException(
-							"Only single result set can be processes, Use sql UNION ALL to merge multiple " +
-								"results");
+						if (wasResultSet) throw new WrongDeclaration(
+							"Only single ResultSet can be processed, " +
+									"Use sql UNION ALL to merge multiple results");
 
-						var in = new ResultSetIn(statement.getResultSet());
+						var in = new ResultIn(statement.getResultSet());
 						returnValue = codec.decode(in);
 						wasResultSet = true;
 					}
 				}
 
-				if (!wasResultSet) throw new IllegalStateException(
-					"ResultSet exected but there was none. Fix SQL query, or use void return type or " +
-						"int/long @UpdateCount");
+				if (!wasResultSet) throw new WrongDeclaration(
+					"ResultSet expected but there was none. " +
+							"Fix SQL query, or use void return type or int/long @UpdateCount");
 			} // end resultsets
 		} // end not batch
 

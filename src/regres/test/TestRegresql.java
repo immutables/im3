@@ -1,11 +1,14 @@
 package io.immutables.regres.test;
 
 import com.fasterxml.jackson.core.JsonFactoryBuilder;
+import io.immutables.codec.Jsons;
 import io.immutables.codec.Medium;
 import io.immutables.codec.Registry;
+import io.immutables.codec.jackson.EmbeddedJson;
 import io.immutables.codec.record.RecordsFactory;
 import io.immutables.regres.ConnectionProvider;
-import io.immutables.regres.Jsons;
+import io.immutables.regres.JdbcCodecs;
+import io.immutables.regres.JdbcMedium;
 import io.immutables.regres.Regresql;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
@@ -14,8 +17,13 @@ import org.junit.Test;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static io.immutables.that.Assert.that;
@@ -23,7 +31,8 @@ import static io.immutables.that.Assert.that;
 public class TestRegresql {
 	private static final Registry registry = new Registry.Builder()
 			.add(new RecordsFactory())
-			.add(io.immutables.regres.Codecs.jsonsFactory(new JsonFactoryBuilder()
+			.add(JdbcCodecs.Instance, JdbcMedium.Jdbc)
+			.add(EmbeddedJson.using(new JsonFactoryBuilder()
 					.build()), Medium.Any, Jsons.class)
 			.build();
 
@@ -120,5 +129,18 @@ public class TestRegresql {
 		that(bs.get(1).c().content()).isOf(2);
 		that(bs.get(2).c().content()).isOf(3);
 		sample.dropTable();
+	}
+
+	@Test
+	public void jdbcTypes() {
+		sample.createTypes();
+		sample.insertTypes(new Sample.FancyTypes(
+				UUID.randomUUID(),
+				OffsetDateTime.now(),
+				Instant.now(),
+				new Jsons<>("jsonb")));
+		List<UUID> ids = sample.readUuid();
+		that(ids).notEmpty();
+		var types = sample.readFancyTypes();
 	}
 }

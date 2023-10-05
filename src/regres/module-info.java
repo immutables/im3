@@ -3,7 +3,6 @@ module io.immutables.regres {
 
 	requires io.immutables.common;
 	requires io.immutables.codec;
-	requires io.immutables.codec.jackson;
 
 	// optional dependency on postgresql to refine exception
 	// messages if we're dealing with PostgreSQL database,

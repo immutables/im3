@@ -4,8 +4,8 @@ import java.util.Comparator;
 import java.util.ServiceLoader;
 
 // TODO support couple of providers at the same time,
-// maybe by a composite provider iterating over may actual providers
-public final class Providers {
+// maybe by a composite provider iterating over many actual providers
+final class Providers {
 	private Providers() {}
 
 	private static final MetadataProvider metadata;
