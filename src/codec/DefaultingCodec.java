@@ -14,7 +14,8 @@ import io.immutables.meta.Null;
  * @param <I> Subclass of {@link In} (or just {@code In}) used for this medium
  * @param <O> Subclass of {@link Out} (or just {@code Out}) used for this medium
  */
-public abstract class DefaultingCodec<T, I extends In, O extends Out> extends Codec<T, I, O> {
+public abstract class DefaultingCodec<T, I extends In, O extends Out>
+		extends Codec<T, I, O> {
 	/**
 	 * Can provide a default value for a type when value is absent from the input,
 	 * but needed to construct an instance for a component(field) represented by
@@ -25,7 +26,7 @@ public abstract class DefaultingCodec<T, I extends In, O extends Out> extends Co
 
 	/**
 	 * Checks if this codec will indeed provide a default. Should be quick and lightweight check.
-	 * @return if this codec provides defaultInstance (even {@code null} if it is the default)
+	 * @return if this codec provides getDefault (even {@code null} if it is the default)
 	 */
 	public boolean providesDefault() {return false;}
 

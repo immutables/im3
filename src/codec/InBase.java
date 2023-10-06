@@ -3,11 +3,21 @@ package io.immutables.codec;
 import java.io.IOException;
 
 // TODO complete proper handling of mismatch and validation
-abstract class InOutBase {
+// or just inline in
+abstract class InBase {
+	/** Current path, roughly of JSON-path notation */
 	public abstract String path() throws IOException;
 
+	/** Current peeked token. */
 	public abstract In.At peek() throws IOException;
 
+	/**
+	 * Last name that was read, useful when {@link In#takeField()} or
+	 * {@link In#takeString(NameIndex)} return {@link NameIndex#UNKNOWN}.
+	 * This should be consulted immediately after mentioned
+	 * {@code takeField} and {@code takeString} operations, and it should be
+	 * an error/undefined to call it in other contexts.
+	 */
 	public abstract String name() throws IOException;
 
 	public void missing(String name, Object descriptor) throws IOException {
@@ -33,7 +43,4 @@ abstract class InOutBase {
 		instanceFailed = false;
 		return b;
 	}
-
-	@Deprecated // no use?
-	public boolean hasProblems() {return false;}
 }

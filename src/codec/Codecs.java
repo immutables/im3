@@ -8,7 +8,8 @@ import static java.util.Objects.requireNonNull;
 public class Codecs {
 	private Codecs() {}
 
-	public static <T, I extends In, O extends Out> Codec<T, I, O> nullSafe(Codec<T, I, O> original) {
+	public static <T, I extends In, O extends Out>
+	Codec<T, I, O> nullSafe(Codec<T, I, O> original) {
 		return new DefaultingCodec<>() {
 			public void encode(O out, @Null T instance) throws IOException {
 				if (instance == null) out.putNull();

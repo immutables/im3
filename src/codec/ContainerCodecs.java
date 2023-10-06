@@ -250,17 +250,23 @@ final class ContainerCodecs {
 			out.endArray();
 		}
 
-		public @Null Object decode(In in) throws IOException {
+		public Object decode(In in) throws IOException {
 			in.beginArray();
 
+			// Growing list collecting objects,
+			// primitive types will be passed as wrapper types
+			// from component decode anyway
 			var buffer = new ArrayList<>();
 			while (in.hasNext()) {
 				buffer.add(componentCodec.decode(in));
 			}
 			in.endArray();
 
+			// creating actual array of needed type and size
 			Object instance = Array.newInstance(componentType, buffer.size());
 			for (int i = 0; i < buffer.size(); i++) {
+				// we expect that set will never fail if component codec
+				// is valid, so that primitive arrays will never see null elements etc.
 				Array.set(instance, i, buffer.get(i));
 			}
 			return instance;
@@ -336,7 +342,8 @@ final class ContainerCodecs {
 		Optional.class, OptionalInt.class, OptionalLong.class, OptionalDouble.class
 	};
 
-	// In the end to avoid problems with forward references to constant codecs
+	// Placed in the end of class, to avoid forward references
+	// to codecs in final fields
 	static final Codec.Factory<In, Out> GenericFactory = (type, raw, medium, lookup) -> {
 		if (raw == List.class) {
 			var elementType = Types.getFirstArgument(type);

@@ -7,19 +7,28 @@ import java.util.Arrays;
 import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.databind.util.TokenBuffer;
+import io.immutables.codec.Problem;
+
 import static com.fasterxml.jackson.core.JsonTokenId.*;
 
 public final class JsonParserIn extends In {
 	final JsonParser parser;
+	final Problem.Handler handler;
 
 	public JsonParserIn(JsonParser parser) {
+		this(parser, throwingHandler());
+	}
+
+	public JsonParserIn(JsonParser parser, Problem.Handler handler) {
 		this.parser = parser;
+		this.handler = handler;
 	}
 
 	private int peeked = ID_NO_TOKEN;
 
 	public At peek() throws IOException {
-		return atToken(ensurePeeked());
+		ensurePeeked();
+		return atToken(peeked);
 	}
 
 	private int ensurePeeked() throws IOException {
@@ -63,7 +72,13 @@ public final class JsonParserIn extends In {
 
 	public double takeDouble() throws IOException {
 		ensurePeeked();
-		double d = parser.getDoubleValue();
+		double d = switch (peeked) {
+			case ID_NUMBER_INT, ID_NUMBER_FLOAT -> parser.getDoubleValue();
+			default -> {
+				unexpected("float number");
+				yield Double.NaN;
+			}
+		};
 		peeked = ID_NO_TOKEN;
 		return d;
 	}
@@ -82,13 +97,28 @@ public final class JsonParserIn extends In {
 		peeked = ID_NO_TOKEN;
 	}
 
+	private unexpected(String expected, Object... args) {
+		return new JsonParseException(parser, template.formatted(args));
+	}
+
+	void unexpected(String expected) throws IOException {
+
+	}
+
+	@Deprecated(forRemoval = true)
 	private IOException unexpected(String template, Object... args) {
 		return new JsonParseException(parser, template.formatted(args));
 	}
 
 	public String takeString() throws IOException {
 		ensurePeeked();
-		var s = parser.getValueAsString();
+		String s;
+		if (peeked == ID_STRING) {
+			s = parser.getText();
+		} else {
+			s = NOT_A_STRING;
+			unexpected(, );
+		}
 		peeked = ID_NO_TOKEN;
 		return s;
 	}
@@ -204,4 +234,6 @@ public final class JsonParserIn extends In {
 		}
 		return path.insert(0, "$").toString();
 	}
+
+	private static final String NOT_A_STRING = "\0";
 }

@@ -2,7 +2,7 @@ package io.immutables.codec;
 
 import java.io.IOException;
 
-public abstract class In extends InOutBase {
+public abstract class In extends InBase {
 	public enum At {
 		Null,
 		Int,
@@ -55,12 +55,7 @@ public abstract class In extends InOutBase {
 
 	public abstract int takeField() throws IOException;
 
-	/**
-	 * Last name that was read, useful when {@link #takeField()} or {@link #takeString(NameIndex)}
-	 * return {@link NameIndex#UNKNOWN}. This should be consulted immediately after mentioned
-	 * {@code takeField} and {@code takeName} operations, and it should be an error/undefined to call
-	 * it in other contexts.
-	 */
+	@Override
 	public abstract String name() throws IOException;
 
 	/**
