@@ -1,6 +1,7 @@
 package io.immutables.codec;
 
 import io.immutables.meta.Null;
+import java.io.IOException;
 
 /**
  * Abstract subclass for codecs which can provide default value if input is missing.
@@ -22,7 +23,7 @@ public abstract class DefaultingCodec<T, I extends In, O extends Out>
 	 * this codec.
 	 * @return default implementation returns {@code null}, override to change this
 	 */
-	public @Null T getDefault() {return null;}
+	public @Null T getDefault(In in) throws IOException {return null;}
 
 	/**
 	 * Checks if this codec will indeed provide a default. Should be quick and lightweight check.

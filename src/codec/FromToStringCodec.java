@@ -24,8 +24,8 @@ public abstract class FromToStringCodec<T>
 		return fromString(in.takeString());
 	}
 
-	@Override public final boolean expects(In.At first) {
-		return first == In.At.String;
+	@Override public final boolean expects(Token first) {
+		return first == Token.String;
 	}
 
 	public static <T> FromToStringCodec<T> from(

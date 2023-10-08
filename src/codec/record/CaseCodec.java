@@ -3,6 +3,7 @@ package io.immutables.codec.record;
 import io.immutables.codec.DefaultingCodec;
 import io.immutables.codec.In;
 import io.immutables.codec.Out;
+import io.immutables.meta.Null;
 import java.io.IOException;
 
 abstract class CaseCodec<T, I extends In, O extends Out> extends DefaultingCodec<T, I, O> {
@@ -17,5 +18,15 @@ abstract class CaseCodec<T, I extends In, O extends Out> extends DefaultingCodec
 	 * consumed. This can help arranging nested checks. For when we about to return {@code false},
 	 * it would be not that important, and we can leave buffered input partially consumed/broken.
 	 */
-	boolean mayConform(I in) throws IOException {return false;}
+	boolean mayConform(I in) throws IOException {
+		return false;
+	}
+
+	boolean mayConform(I in, @Null CaseTag tag) throws IOException {
+		return mayConform(in);
+	}
+
+	void encode(O out, T instance, @Null CaseTag tag) throws IOException {
+		encode(out, instance);
+	}
 }

@@ -31,11 +31,10 @@ final class ContainerCodecs {
 			else codec.encode(out, content);
 		}
 
-		public @Null Optional<T> decode(In in) throws IOException {
-			if (in.peek() == In.At.Null) return Optional.empty();
+		public Optional<T> decode(In in) throws IOException {
+			if (in.peek() == Token.Null) return Optional.empty();
 			// ofNullable just in case we have construction failed returning null
 			@Null T content = codec.decode(in);
-			if (in.wasInstanceFailed()) return null;
 			return Optional.ofNullable(content);
 		}
 
@@ -43,7 +42,7 @@ final class ContainerCodecs {
 			return instance == null || instance.isEmpty();
 		}
 
-		public Optional<T> getDefault() {
+		public Optional<T> getDefault(In in) {
 			return Optional.empty();
 		}
 
@@ -67,11 +66,11 @@ final class ContainerCodecs {
 		}
 
 		public OptionalInt decode(In in) throws IOException {
-			if (in.peek() == In.At.Null) return OptionalInt.empty();
+			if (in.peek() == Token.Null) return OptionalInt.empty();
 			return OptionalInt.of(in.takeInt());
 		}
 
-		public OptionalInt getDefault() {
+		public OptionalInt getDefault(In in) {
 			return OptionalInt.empty();
 		}
 
@@ -91,11 +90,11 @@ final class ContainerCodecs {
 		}
 
 		public OptionalLong decode(In in) throws IOException {
-			if (in.peek() == In.At.Null) return OptionalLong.empty();
-			return OptionalLong.of(in.takeInt());
+			if (in.peek() == Token.Null) return OptionalLong.empty();
+			return OptionalLong.of(in.takeLong());
 		}
 
-		public OptionalLong getDefault() {
+		public OptionalLong getDefault(In in) {
 			return OptionalLong.empty();
 		}
 
@@ -108,7 +107,6 @@ final class ContainerCodecs {
 		}
 	};
 
-
 	private static final Codec<OptionalDouble, In, Out> optionalDoubleCodec = new DefaultingCodec<>() {
 		public void encode(Out out, OptionalDouble instance) throws IOException {
 			if (instance.isEmpty()) out.putNull();
@@ -116,11 +114,11 @@ final class ContainerCodecs {
 		}
 
 		public OptionalDouble decode(In in) throws IOException {
-			if (in.peek() == In.At.Null) return OptionalDouble.empty();
+			if (in.peek() == Token.Null) return OptionalDouble.empty();
 			return OptionalDouble.of(in.takeDouble());
 		}
 
-		public OptionalDouble getDefault() {
+		public OptionalDouble getDefault(In in) {
 			return OptionalDouble.empty();
 		}
 
@@ -150,17 +148,14 @@ final class ContainerCodecs {
 			out.endArray();
 		}
 
-		public @Null Object decode(In in) throws IOException {
+		public Object decode(In in) throws IOException {
 			var buffer = new ArrayList<>();
-			in.beginArray();
-			while (in.hasNext()) {
-				buffer.add(elementCodec.decode(in));
-			}
-			in.endArray();
+			boolean failed = readArray(in, elementCodec, buffer);
+			if (failed) return in.problems.unreachable();
 			return List.copyOf(buffer);
 		}
 
-		@Override public Object getDefault() {
+		@Override public Object getDefault(In in) {
 			return List.of();
 		}
 
@@ -168,8 +163,8 @@ final class ContainerCodecs {
 			return true;
 		}
 
-		@Override public boolean expects(In.At first) {
-			return first == In.At.Array;
+		@Override public boolean expects(Token first) {
+			return first == Token.Array;
 		}
 
 		@Override
@@ -198,17 +193,14 @@ final class ContainerCodecs {
 
 		public @Null Object decode(In in) throws IOException {
 			var buffer = new ArrayList<>();
-			in.beginArray();
-			while (in.hasNext()) {
-				buffer.add(elementCodec.decode(in));
-			}
-			in.endArray();
+			boolean failed = readArray(in, elementCodec, buffer);
+			if (failed) return in.problems.unreachable();
 			// Insertion order or duplicates will not be preserved
 			// If those are important — don't use Set, and resort to a List
 			return Set.copyOf(buffer);
 		}
 
-		public Object getDefault() {
+		public Object getDefault(In in) {
 			return Set.of();
 		}
 
@@ -217,8 +209,8 @@ final class ContainerCodecs {
 		}
 
 		@Override
-		public boolean expects(In.At first) {
-			return first == In.At.Array;
+		public boolean expects(Token first) {
+			return first == Token.Array;
 		}
 
 		@Override
@@ -251,17 +243,10 @@ final class ContainerCodecs {
 		}
 
 		public Object decode(In in) throws IOException {
-			in.beginArray();
-
-			// Growing list collecting objects,
-			// primitive types will be passed as wrapper types
-			// from component decode anyway
 			var buffer = new ArrayList<>();
-			while (in.hasNext()) {
-				buffer.add(componentCodec.decode(in));
-			}
-			in.endArray();
-
+			boolean failed = readArray(in, componentCodec, buffer);
+			// returning with unreachable if known to have problems
+			if (failed) return in.problems.unreachable();
 			// creating actual array of needed type and size
 			Object instance = Array.newInstance(componentType, buffer.size());
 			for (int i = 0; i < buffer.size(); i++) {
@@ -277,8 +262,8 @@ final class ContainerCodecs {
 		}
 
 		@Override
-		public boolean expects(In.At first) {
-			return first == In.At.Array;
+		public boolean expects(Token first) {
+			return first == Token.Array;
 		}
 	}
 
@@ -304,22 +289,36 @@ final class ContainerCodecs {
 			out.endStruct();
 		}
 
-		public @Null Object decode(In in) throws IOException {
-			var keyIn = new Codecs.RetrieveSimpleIn();
+		public Object decode(In in) throws IOException {
+			var keyIn = new Codecs.RetrieveSimpleIn(in.problems);
 			var buffer = new HashMap<>();
+
 			in.beginStruct(in.index());
+			boolean failed = in.problems.raised();
+			// failed here if not a struct,
+			// but hasNext() will be false and endStruct() ok
 			while (in.hasNext()) {
 				in.takeField(); // ignore field code
 				keyIn.reset(in.name()); // use name read
 				var key = keyCodec.decode(keyIn);
+				if (in.problems.raised()) {
+					// skip value if key failed
+					failed = true;
+					in.skip();
+					continue;
+				}
 				var value = valueCodec.decode(in);
-				buffer.put(key, value);
+				failed |= in.problems.raised();
+
+				if (!failed) buffer.put(key, value);
 			}
 			in.endStruct();
+
+			if (failed) return in.problems.unreachable();
 			return Map.copyOf(buffer);
 		}
 
-		public Object getDefault() {
+		public Object getDefault(In in) {
 			return Map.of();
 		}
 
@@ -328,8 +327,8 @@ final class ContainerCodecs {
 		}
 
 		@Override
-		public boolean expects(In.At first) {
-			return first == In.At.Struct;
+		public boolean expects(Token first) {
+			return first == Token.Struct;
 		}
 	}
 
@@ -337,14 +336,46 @@ final class ContainerCodecs {
 		return classes.clone();
 	}
 
+	private static <T> boolean readArray(
+			In in, Codec<T, In, Out> elementCodec, Collection<T> buffer
+	) throws IOException {
+		in.beginArray();
+		// this will be failed if it's not an array, but in this case
+		// hasNext will be false and finishing endArray will be ok
+		boolean failed = in.problems.raised();
+
+		while (in.hasNext()) {
+			if (failed && in.problems.isOverflowed()) {
+				in.skip();
+			} else {
+				var element = elementCodec.decode(in);
+				failed |= in.problems.raised();
+				// we only keep adding elements if we have not failed yet
+				if (!failed) buffer.add(element);
+			}
+		}
+		in.endArray();
+		return failed;
+	}
+
 	private static final Class<?>[] classes = {
 		List.class, Set.class, Map.class,
 		Optional.class, OptionalInt.class, OptionalLong.class, OptionalDouble.class
 	};
 
+
+
 	// Placed in the end of class, to avoid forward references
 	// to codecs in final fields
+	// TODO make separate factories, which will be naturally keyed in the registry
 	static final Codec.Factory<In, Out> GenericFactory = (type, raw, medium, lookup) -> {
+		if (raw == OptionalInt.class) return optionalIntCodec;
+		if (raw == OptionalLong.class) return optionalLongCodec;
+		if (raw == OptionalDouble.class) return optionalDoubleCodec;
+		if (raw == Optional.class) {
+			var elementType = Types.getFirstArgument(type);
+			return new OptionalCodec<>(lookup.get(elementType));
+		}
 		if (raw == List.class) {
 			var elementType = Types.getFirstArgument(type);
 			return new ListCodec(lookup.get(elementType));
@@ -358,13 +389,6 @@ final class ContainerCodecs {
 			var valueType = Types.getSecondArgument(type);
 			return new MapCodec(lookup.get(keyType), lookup.get(valueType));
 		}
-		if (raw == Optional.class) {
-			var elementType = Types.getFirstArgument(type);
-			return new OptionalCodec<>(lookup.get(elementType));
-		}
-		if (raw == OptionalInt.class) return optionalIntCodec;
-		if (raw == OptionalLong.class) return optionalLongCodec;
-		if (raw == OptionalDouble.class) return optionalDoubleCodec;
 		return null;
 	};
 }

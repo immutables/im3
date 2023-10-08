@@ -1,11 +1,12 @@
 package io.immutables.regres;
 
+import io.immutables.codec.Token;
+import io.immutables.codec.AtPath;
 import io.immutables.codec.In;
 import io.immutables.codec.NameIndex;
 import io.immutables.meta.Null;
 import java.io.IOException;
 import java.sql.ResultSet;
-import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.sql.Types;
 import java.util.Arrays;
@@ -21,7 +22,7 @@ public class ResultIn extends In {
 	private final Object[] values;
 	private final int[] indexes;
 
-	private At peek = At.Array;
+	private Token peek = Token.Array;
 	private int atRow = -1;
 	private int atColumn = -1;
 	private @Null String currentName;
@@ -85,25 +86,25 @@ public class ResultIn extends In {
 	}
 
 	@Override
-	public At peek() throws IOException {
+	public Token peek() throws IOException {
 		return peek;
 	}
 
 	@Override
 	public void endArray() throws IOException {
-		if (peek != At.ArrayEnd) unexpected("not at the end of result set");
-		peek = At.End;
+		if (peek != Token.ArrayEnd) unexpected("not at the end of result set");
+		peek = Token.End;
 	}
 
 	@Override
 	public void beginArray() throws IOException {
-		if (peek != At.Array) unexpected("not at beginning of result set");
+		if (peek != Token.Array) unexpected("not at beginning of result set");
 		advanceRow();
 	}
 
 	@Override
 	public void beginStruct(NameIndex names) throws IOException {
-		if (peek != At.Struct) {
+		if (peek != Token.Struct) {
 			unexpected("not at beginning of result set");
 			return;
 		}
@@ -115,30 +116,30 @@ public class ResultIn extends In {
 		atColumn++;
 		if (atColumn >= columnCount) {
 			atColumn = -1;
-			peek = At.StructEnd;
+			peek = Token.StructEnd;
 		} else {
-			peek = At.Field;
+			peek = Token.Field;
 		}
 	}
 
 	private void typeValue() {
 		currentType = types[atColumn];
 		Object v = values[atColumn];
-		At peek;
-		if (v == null) peek = At.Null;
-		else if (v instanceof Integer) peek = At.Int;
-		else if (v instanceof Long) peek = At.Long;
-		else if (v instanceof Number) peek = At.Float;
-		else if (v instanceof Boolean b) peek = b == Boolean.TRUE ? At.True : At.False;
-		else if (v instanceof String s) peek = At.String;
-		else peek = At.Special;
+		Token peek;
+		if (v == null) peek = Token.Null;
+		else if (v instanceof Integer) peek = Token.Int;
+		else if (v instanceof Long) peek = Token.Long;
+		else if (v instanceof Number) peek = Token.Float;
+		else if (v instanceof Boolean b) peek = b == Boolean.TRUE ? Token.True : Token.False;
+		else if (v instanceof String s) peek = Token.String;
+		else peek = Token.Special;
 
 		this.peek = peek;
 	}
 
 	@Override
 	public int takeField() throws IOException {
-		if (peek != At.Field) unexpected("not at column");
+		if (peek != Token.Field) unexpected("not at column");
 		int field = indexes[atColumn];
 		currentName = names[atColumn];
 		typeValue();
@@ -160,7 +161,7 @@ public class ResultIn extends In {
 
 	@Override
 	public void endStruct() throws IOException {
-		if (peek != At.StructEnd) unexpected("not at the end of the row");
+		if (peek != Token.StructEnd) unexpected("not at the end of the row");
 		advanceRow();
 	}
 
@@ -168,10 +169,10 @@ public class ResultIn extends In {
 		atColumn = -1;
 		try {
 			if (!results.next()) {
-				peek = At.ArrayEnd;
+				peek = Token.ArrayEnd;
 			} else {
 				atRow++;
-				peek = At.Struct;
+				peek = Token.Struct;
 				for (int i = 0; i < columnCount; i++) {
 					values[i] = results.getObject(i + 1);
 				}
@@ -201,7 +202,7 @@ public class ResultIn extends In {
 
 	@Override
 	public void takeNull() throws IOException {
-		if (peek != At.Null) unexpected("not at null value");
+		if (peek != Token.Null) unexpected("not at null value");
 		advanceColumn();
 	}
 
@@ -253,27 +254,28 @@ public class ResultIn extends In {
 
 	@Override
 	public void skip() throws IOException {
-		if (peek == At.Struct) {
+		if (peek == Token.Struct) {
 			advanceRow();
-		} else if (peek == At.Array) {
-			peek = At.End;
+		} else if (peek == Token.Array) {
+			peek = Token.End;
 		} else {
 			advanceColumn();
 		}
 	}
 
 	@Override
-	public String path() {
-		return "$"
-			+ (atRow >= 0 ? "[" + atRow + "]" : "")
-			+ (atColumn >= 0 ? "." + names[atColumn] : "");
+	public AtPath path() {
+		AtPath path = AtPath.Root.Root;
+		if (atRow >= 0) path = new AtPath.ElementAt(path, atRow);
+		if (atColumn >= 0) path = new AtPath.FieldOf(path, names[atColumn]);
+		return path;
 	}
 
 	@Override
 	public boolean hasNext() {
 		// field (column) within struct (row)
 		// or struct (row) within array (of results)
-		return peek == At.Field || peek == At.Struct;
+		return peek == Token.Field || peek == Token.Struct;
 	}
 
 	// TODO revise as a whole hierarchy

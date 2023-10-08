@@ -1,6 +1,7 @@
 package io.immutables.codec.test;
 
 import io.immutables.codec.*;
+import io.immutables.codec.record.Tagged;
 import io.immutables.meta.Inline;
 import io.immutables.codec.record.RecordsFactory;
 import java.io.IOException;
@@ -19,6 +20,20 @@ public class TestRecordCodec extends CodecFixture {
 		record A(int a) implements Alt {}
 		record B(String b, String c) implements Alt {}
 		enum C implements Alt { W, V, U }
+	}
+
+	@Tagged(field = "x")
+	public sealed interface Tag {
+		@Tagged("a")
+		record A(int a) implements Tag {}
+		@Tagged("b")
+		record B(int a) implements Tag {}
+	}
+
+	@Tagged
+	public sealed interface TagDef {
+		record A(int a) implements TagDef {}
+		record B(int a) implements TagDef {}
 	}
 
 	public sealed interface Alg<E, G> {
@@ -141,5 +156,27 @@ public class TestRecordCodec extends CodecFixture {
 
 		that(toJson(codec, new Coords(1, 2))).is("[1,2]");
 		thatEqualRoundtrip(codec, new Coords(6, 7));
+	}
+
+	@Test
+	public void polymorphicTagged() throws IOException {
+		var codec = registry.resolve(Tag.class, Medium.Json).orElseThrow();
+
+		thatEqualRoundtrip(codec, new Tag.A(9));
+		thatEqualRoundtrip(codec, new Tag.B(10));
+
+		that(toJson(codec, new Tag.A(2))).is("{x:\"a\",a:2}");
+		that(toJson(codec, new Tag.B(1))).is("{x:\"b\",a:1}");
+	}
+
+	@Test
+	public void polymorphicTaggedDefaults() throws IOException {
+		var codec = registry.resolve(TagDef.class, Medium.Json).orElseThrow();
+
+		thatEqualRoundtrip(codec, new TagDef.A(1));
+		thatEqualRoundtrip(codec, new TagDef.B(2));
+
+		that(toJson(codec, new TagDef.A(5))).is("{$case:\"A\",a:5}");
+		that(toJson(codec, new TagDef.B(7))).is("{$case:\"B\",a:7}");
 	}
 }

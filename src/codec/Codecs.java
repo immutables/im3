@@ -2,7 +2,6 @@ package io.immutables.codec;
 
 import io.immutables.meta.Null;
 import java.io.IOException;
-import java.util.NoSuchElementException;
 import static java.util.Objects.requireNonNull;
 
 public class Codecs {
@@ -17,7 +16,10 @@ public class Codecs {
 			}
 
 			public @Null T decode(I in) throws IOException {
-				if (in.peek() == In.At.Null) return null;
+				if (in.peek() == Token.Null) {
+					in.takeNull();
+					return null;
+				}
 				return original.decode(in);
 			}
 
@@ -25,7 +27,7 @@ public class Codecs {
 				return "nullSafe(" + original + ")";
 			}
 
-			public @Null T getDefault() {
+			public @Null T getDefault(In in) {
 				return null;
 			}
 
@@ -63,16 +65,17 @@ public class Codecs {
 			return requireNonNull(value).toString();
 		}
 
+		// TODO asDouble/Long/Int
+		// TODO error checking (Exception-less mode?)
 		public Number asNumber() {
-			@Null var v = value;
-			if (v == null) throw new NullPointerException();
-			if (v instanceof Number n) return n;
+			var v = requireNonNull(value);
+			if (v instanceof Number n) return n.doubleValue();
 			return Double.valueOf(v.toString());
 		}
 
+		// TODO error checking (Exception-less mode?)
 		public boolean asBoolean() {
-			@Null var v = value;
-			if (v == null) throw new NullPointerException();
+			var v = requireNonNull(value);
 			if (v instanceof Boolean b) return b;
 			return Boolean.parseBoolean(v.toString());
 		}
@@ -104,54 +107,105 @@ public class Codecs {
 
 	public final static class RetrieveSimpleIn extends UnimplementedIn {
 		private @Null Object value;
+		private Token token = Token.End;
 
-		public RetrieveSimpleIn reset(@Null Object value) {
-			this.value = value == null ? MaskedNull : value;
-			return this;
+		public RetrieveSimpleIn(Problem.Handler handler) {super(handler);}
+
+		public void reset(@Null Object value) {
+			if (value == null) {
+				this.value = MaskedNull;
+			} else if (value instanceof Number || value instanceof Boolean) {
+				this.value = value;
+			} else {
+				this.value = value.toString();
+			}
+			// logic in asToken correlates with the above,
+			// but it was cleaner to keep them apart
+			token = asToken(value);
 		}
 
 		public NameIndex index(String... known) {
 			return NameIndex.known(known);
 		}
 
-		public At peek() {
-			return value != null ? At.String : At.End;
+		private Token asToken(@Null Object value) {
+			if (value == null) return Token.End;
+			if (value == MaskedNull) return Token.Null;
+			if (value instanceof Long) return Token.Long;
+			if (value instanceof Integer) return Token.Int;
+			if (value instanceof Number) return Token.Float;
+			if (value instanceof Boolean b) return b == Boolean.TRUE
+					? Token.True
+					: Token.Float;
+			return Token.String;
 		}
 
-		public String takeString(){
-			return requireNonNull(value).toString();
+		public Token peek() {
+			return token;
+		}
+
+		@Override public AtPath path() {
+			return AtPath.Root.Root;
+			// this is only if some codec called it
+			// will this ever be needed, and if needed,
+			// maybe we'll have to pass a good real path
+		}
+
+		public String takeString() {
+			assert value != null;
+			return value.toString();
 		}
 
 		public void takeNull() {
-			if (value != MaskedNull) throw new NoSuchElementException("is not null");
+			assert value != null;
+			if (value != MaskedNull) problems.unreachable();
 		}
 
 		public boolean takeBoolean() {
-			@Null var v = value;
-			if (v == null) throw new NullPointerException();
-			if (v instanceof Boolean b) return b;
-			return Boolean.parseBoolean(v.toString());
+			assert value != null;
+			if (value instanceof Boolean b) return b;
+			return switch (value.toString()) {
+				// this is JSON syntax, parseBoolean differs
+				case "true" -> true;
+				case "false" -> false;
+				default -> {
+					problems.unreachable();
+					yield false;
+				}
+			};
 		}
 
 		public double takeDouble() {
-			@Null var v = value;
-			if (v == null) throw new NullPointerException();
-			if (v instanceof Number n) return n.doubleValue();
-			return Double.parseDouble(v.toString());
+			assert value != null;
+			if (value instanceof Number n) return n.doubleValue();
+			try {
+				return Double.parseDouble(value.toString());
+			} catch (NumberFormatException e) {
+				problems.unreachable();
+				return Double.NaN;
+			}
 		}
 
 		public long takeLong() {
-			@Null var v = value;
-			if (v == null) throw new NullPointerException();
-			if (v instanceof Number n) return n.longValue();
-			return Long.parseLong(v.toString());
+			assert value != null;
+			if (value instanceof Number n) return n.longValue();
+			try {
+				return Long.parseLong(value.toString());
+			} catch (NumberFormatException e) {
+				problems.unreachable();
+				return Long.MIN_VALUE;
+			}
 		}
 
 		public int takeInt() {
-			@Null var v = value;
-			if (v == null) throw new NullPointerException();
-			if (v instanceof Number n) return n.intValue();
-			return Integer.parseInt(v.toString());
+			assert value != null;
+			if (value instanceof Number n) return n.intValue();
+			try {
+				return Integer.parseInt(value.toString());
+			} catch (NumberFormatException e) {
+				problems.unreachable();
+				return Integer.MIN_VALUE;
+			}
 		}
 	}
 
@@ -227,80 +281,81 @@ public class Codecs {
 	 * all other unimplemented.
 	 */
 	public static class UnimplementedIn extends In {
+		protected UnimplementedIn(Problem.Handler problems) {super(problems);}
 
-		public NameIndex index(String... known) {
+		@Override public NameIndex index(String... known) {
 			throw new UnsupportedOperationException();
 		}
 
-		public At peek() throws IOException {
+		@Override public Token peek() throws IOException {
 			throw new UnsupportedOperationException();
 		}
 
-		public int takeInt() throws IOException {
+		@Override public int takeInt() throws IOException {
 			throw new UnsupportedOperationException();
 		}
 
-		public long takeLong() throws IOException {
+		@Override public long takeLong() throws IOException {
 			throw new UnsupportedOperationException();
 		}
 
-		public double takeDouble() throws IOException {
+		@Override public double takeDouble() throws IOException {
 			throw new UnsupportedOperationException();
 		}
 
-		public boolean takeBoolean() throws IOException {
+		@Override public boolean takeBoolean() throws IOException {
 			throw new UnsupportedOperationException();
 		}
 
-		public void takeNull() throws IOException {
+		@Override public void takeNull() throws IOException {
 			throw new UnsupportedOperationException();
 		}
 
-		public String takeString() throws IOException {
+		@Override public String takeString() throws IOException {
 			throw new UnsupportedOperationException();
 		}
 
-		public int takeString(NameIndex names) throws IOException {
+		@Override public int takeString(NameIndex names) throws IOException {
 			throw new UnsupportedOperationException();
 		}
 
-		public int takeField() throws IOException {
+		@Override public int takeField() throws IOException {
 			throw new UnsupportedOperationException();
 		}
 
-		public String name() throws IOException {
+		@Override public String name() throws IOException {
 			throw new UnsupportedOperationException();
 		}
 
-		public void skip() throws IOException {
+		@Override public void skip() throws IOException {
 			throw new UnsupportedOperationException();
 		}
 
-		public boolean hasNext() throws IOException {
+		@Override public boolean hasNext() throws IOException {
 			throw new UnsupportedOperationException();
 		}
 
-		public void beginArray() throws IOException {
+		@Override public void beginArray() throws IOException {
 			throw new UnsupportedOperationException();
 		}
 
-		public void endArray() throws IOException {
+		@Override public void endArray() throws IOException {
 			throw new UnsupportedOperationException();
 		}
 
-		public void beginStruct(NameIndex names) throws IOException {
+		@Override public void beginStruct(NameIndex names) throws IOException {
 			throw new UnsupportedOperationException();
 		}
 
-		public void endStruct() throws IOException {
+		@Override public void endStruct() throws IOException {
 			throw new UnsupportedOperationException();
 		}
 
-		public String path() throws IOException  {
+		@Override public AtPath path() {
 			throw new UnsupportedOperationException();
 		}
 
-		public Buffer takeBuffer() throws IOException {
+		@Override public Buffer takeBuffer() throws IOException {
 			throw new UnsupportedOperationException();
 		}
 	}

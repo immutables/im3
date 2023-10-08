@@ -15,6 +15,14 @@ public interface MetadataProvider {
 	boolean isNullableComponent(RecordComponent component);
 
 	/**
+	 * Record case tag can be given explicitly
+	 * @param record record class
+	 * @param sealed optional sealed interface
+	 * @return case tag descriptor or {@code null} if not found.
+	 */
+	@Null CaseTag findCaseTag(Class<?> record, @Null Class<?> sealed);
+
+	/**
 	 * Tries to find a reflective accessor for a default value.
 	 * A {@link java.lang.reflect.Constructor} for subclass no-arg constructor.
 	 * A {@link java.lang.reflect.Field} for a static field (and enum constant),

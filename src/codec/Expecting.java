@@ -8,5 +8,5 @@ package io.immutables.codec;
  */
 public interface Expecting {
 
-	boolean expects(In.At first);
+	boolean expects(Token first);
 }

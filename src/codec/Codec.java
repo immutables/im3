@@ -30,7 +30,13 @@ public abstract class Codec<T, I extends In, O extends Out> {
 	public abstract void encode(O out, T instance) throws IOException;
 
 	/**
-	 * Decodes an instance {@code null} return value is reserved for those cases.
+	 * Decodes an instance.
+	 * <p>{@code null} return value is returned when either return value was {@code null},
+	 * from the codec supporting such values, or an error occurred
+	 * (usually via {@link Problem.Handler#unreachable()}).
+	 * Check {@code in.problems.raised()} flag to detect such errors in exception-less mode.
+	 * Handler may also just throw {@link IOException} for errors in fail-fast mode
+	 * ({@link Problem.Handler#ThrowingHandler}).
 	 */
 	public abstract @NullUnknown T decode(I in) throws IOException;
 
@@ -50,7 +56,9 @@ public abstract class Codec<T, I extends In, O extends Out> {
 		 *	i.e. no type variables.
 		 * @param medium medium against which specific codecs will be selected.
 		 * @return optional codec, might be absent
-		 * @param <T> target type, should match passed {@code type}, but can be specified as {@link Object} if this can be beneficial in particular place, relying on runtime check for {@link Type}.
+		 * @param <T> target type, should match passed {@code type},
+		 * 	but can be specified as {@link Object} if this can be beneficial in particular place,
+		 * 	relying on runtime check for {@link Type}.
 		 * @param <I> Subclass of {@link In} (or just {@code In}) used for this medium
 		 * @param <O> Subclass of {@link Out} (or just {@code Out}) used for this medium
 		 */
@@ -69,8 +77,10 @@ public abstract class Codec<T, I extends In, O extends Out> {
 		/**
 		 * Try to create codec for given type or return {@code null} if
 		 * factory is not applicable and cannot create such codec.
-		 * @param type generic type with all arguments fully specified. This would be class instance for non-parameterized types and primitives.
-		 * @param raw raw class of the given type. For non parameterized types, {@code class == type}
+		 * @param type generic type with all arguments fully specified.
+		 * 	This would be class instance for non-parameterized types and primitives.
+		 * @param raw raw class of the given type. For non parameterized types,
+		 * 	{@code class == type}
 		 * @param medium medium for which codecs should be picked.
 		 * @param lookup delegate for codec to lookup nested codecs. Useful for
 		 *  parameterized codecs and compound types (structs and tuples)

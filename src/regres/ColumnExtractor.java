@@ -5,7 +5,6 @@ import io.immutables.codec.In;
 import io.immutables.codec.NameIndex;
 import io.immutables.codec.Out;
 import io.immutables.meta.Null;
-import io.immutables.regres.SqlAccessor;
 import java.io.IOException;
 
 final class ColumnExtractor extends Codec<Object, In, Out> {
@@ -34,21 +33,21 @@ final class ColumnExtractor extends Codec<Object, In, Out> {
 				if (columnName.equals(in.name())) {
 					columnValue = codec.decode(in);
 					matched = true;
-					failed = in.wasInstanceFailed();
+					failed = in.problems.raised();
 					break;
 				} else in.skip();
 			} else {
 				if (i == columnIndex) {
 					columnValue = codec.decode(in);
 					matched = true;
-					failed = in.wasInstanceFailed();
+					failed = in.problems.raised();
 					break;
 				} else in.skip();
 			}
 			i++;
 		}
 
-		// just politely consume the row to the end
+		// politely consume the row to the end
 		while (in.hasNext()) {
 			in.takeField();
 			in.skip();
@@ -56,6 +55,8 @@ final class ColumnExtractor extends Codec<Object, In, Out> {
 		in.endStruct();
 
 		if (!matched) throw new IOException("No column matched for " + column);
+
+		// FIXME how to best integrate with problem reporting?
 		if (failed) throw new IOException("Decoding column failed: " + in.name());
 
 		return columnValue;

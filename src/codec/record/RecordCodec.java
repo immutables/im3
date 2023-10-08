@@ -5,7 +5,6 @@ import io.immutables.meta.Null;
 import java.io.IOException;
 import java.lang.reflect.*;
 
-@SuppressWarnings("unchecked") // TODO explain
 final class RecordCodec<T> extends CaseCodec<T, In, Out> implements Expecting {
 	private final String[] componentNames;
 	private final Type[] componentTypes;
@@ -20,6 +19,7 @@ final class RecordCodec<T> extends CaseCodec<T, In, Out> implements Expecting {
 	// for this codec for medium
 	private @Null NameIndex names;
 
+	@SuppressWarnings("unchecked") // for private generic array
 	RecordCodec(Type type, Class<?> raw, Codec.Lookup<In, Out> lookup) {
 		this.type = type;
 		assert raw.isRecord();
@@ -56,9 +56,17 @@ final class RecordCodec<T> extends CaseCodec<T, In, Out> implements Expecting {
 		canonicalConstructor = Reflect.getCanonicalConstructor(raw);
 	}
 
-	public boolean mayConform(In in) throws IOException {
+	@Override public boolean mayConform(In in) throws IOException {
+		return mayConform(in, null);
+	}
+
+	@Override public boolean mayConform(In in, @Null CaseTag tag) throws IOException {
 		// only for structs
-		if (in.peek() != In.At.Struct) return false;
+		if (in.peek() != Token.Struct) return false;
+
+		// If we have tag, we will just go over all properties to find it and match,
+		// ignoring everything else
+		if (tag != null) return hasMatchingTag(in, tag);
 
 		if (names == null) names = in.index(componentNames);
 
@@ -81,7 +89,7 @@ final class RecordCodec<T> extends CaseCodec<T, In, Out> implements Expecting {
 		for (int i = 0; i < length; i++) {
 			if (!componentPresent[i]) {
 				if (componentCodecs[i] instanceof DefaultingCodec<Object, In, Out> defaulting
-					&& defaulting.providesDefault()) continue;
+						&& defaulting.providesDefault()) continue;
 				return false;
 			}
 		}
@@ -89,18 +97,48 @@ final class RecordCodec<T> extends CaseCodec<T, In, Out> implements Expecting {
 		return true;
 	}
 
-	public void encode(Out out, T instance) throws IOException {
+	private static boolean hasMatchingTag(In in, CaseTag tag) throws IOException {
+		in.beginStruct(in.index(tag.field()));
+		while (in.hasNext()) {
+			// found our single indexed field
+			if (in.takeField() == 0) {
+				// if we matched field, then we match on value, which
+				// will definitely tell use if this can be parsed with this codec
+				// then other field/type mismatches will have a better diagnostics
+				// because codec selection will be pre-made
+				if (in.peek() == Token.String) {
+					return in.takeString().equals(tag.value());
+				}
+				in.skip(); // not strictly necessary as buffered 'in' supposed to be throw-away
+				return false;
+			}
+			// if we haven't matched field, just skip value and go to a next field
+			// it is necessary
+			in.skip();
+		}
+		in.endStruct(); // not strictly necessary as buffered 'in' supposed to be throw-away
+		return false;
+	}
+
+	@Override void encode(Out out, T instance, @Null CaseTag tag) throws IOException {
 		if (names == null) names = out.index(componentNames);
 
 		var length = componentNames.length;
 
 		out.beginStruct(names);
+
+		if (tag != null) {
+			// first we will output tag if requested
+			out.putField(tag.field());
+			out.putString(tag.value());
+		}
+
 		for (int i = 0; i < length; i++) {
 			var value = Reflect.getValue(componentAccessors[i], instance);
 			var codec = componentCodecs[i];
 
 			if (codec instanceof DefaultingCodec<Object, In, Out> defaulting
-				&& defaulting.canSkip(out, value)) continue;
+					&& defaulting.canSkip(out, value)) continue;
 
 			out.putField(i);
 			codec.encode(out, value);
@@ -108,7 +146,12 @@ final class RecordCodec<T> extends CaseCodec<T, In, Out> implements Expecting {
 		out.endStruct();
 	}
 
-	public @Null T decode(In in) throws IOException {
+	@Override public void encode(Out out, T instance) throws IOException {
+		encode(out, instance, null);
+	}
+
+	@SuppressWarnings("unchecked") // constructor picked by runtime reflection, matches T
+	@Override public @Null T decode(In in) throws IOException {
 		if (names == null) names = in.index(componentNames);
 
 		var length = componentNames.length;
@@ -116,17 +159,23 @@ final class RecordCodec<T> extends CaseCodec<T, In, Out> implements Expecting {
 		var componentPresent = new boolean[length];
 
 		in.beginStruct(names);
+		if (in.problems.raised()) {
+			// failed if not a struct
+			assert !in.hasNext();
+			in.endStruct();
+			return in.problems.unreachable();
+		}
 
 		boolean componentFailed = false;
+
 		while (in.hasNext()) {
 			int f = in.takeField();
 			if (f >= 0) {
 				componentPresent[f] = true;
 				componentValues[f] = componentCodecs[f].decode(in);
-
-				componentFailed |= in.clearInstanceFailed();
+				componentFailed |= in.problems.raised();
 			} else {
-				in.unknown();
+				in.unknown(type);
 				in.skip();
 			}
 		}
@@ -139,30 +188,36 @@ final class RecordCodec<T> extends CaseCodec<T, In, Out> implements Expecting {
 		for (int i = 0; i < length; i++) {
 			if (!componentPresent[i]) {
 				if (componentCodecs[i] instanceof DefaultingCodec<Object, In, Out> defaulting
-					&& defaulting.providesDefault()) {
-					componentValues[i] = defaulting.getDefault();
+						&& defaulting.providesDefault()) {
+					componentValues[i] = defaulting.getDefault(in);
+					componentFailed |= in.problems.raised();
 				} else {
-					in.missing(componentNames[i], componentTypes[i].getTypeName());
+					in.missing(componentNames[i], componentTypes[i], type);
 					componentFailed = true;
 				}
 			}
 		}
 
-		if (componentFailed) {
-			in.failInstance();
-			return null;
+		// if components missing or failed to instantiate
+		// we should not even try to instantiate our record
+		if (componentFailed) return in.problems.unreachable();
+
+		// all components ok, we try to instantiate record
+		// it's unlikely to fail, but still it can have precondition
+		// checks or runtime problems in constructor
+		try {
+			return (T) Reflect.newInstance(canonicalConstructor, componentValues);
+		} catch (RuntimeException exception) {
+			in.cannotInstantiate(type, exception.getMessage());
+			return in.problems.unreachable();
 		}
-
-		var instance = Reflect.newInstance(canonicalConstructor, componentValues);
-
-		return (T) instance;
 	}
 
-	public boolean expects(In.At first) {
-		return first == In.At.Struct;
+	@Override public boolean expects(Token first) {
+		return first == Token.Struct;
 	}
 
-	public String toString() {
+	@Override public String toString() {
 		return getClass().getSimpleName() + "<" + type.getTypeName() + ">";
 	}
 }

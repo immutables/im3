@@ -29,9 +29,14 @@ final class InlineRecordCodec extends CaseCodec<Object, In, Out> implements Expe
 	}
 
 	public @Null Object decode(In in) throws IOException {
-		@Null Object decode = componentCodec.decode(in);
-		if (in.wasInstanceFailed()) return null;
-		return Reflect.newInstance(canonicalConstructor, decode);
+		@Null Object value = componentCodec.decode(in);
+		if (in.problems.raised()) return in.problems.unreachable();
+		try {
+			return Reflect.newInstance(canonicalConstructor, value);
+		} catch (RuntimeException exception) {
+			in.cannotInstantiate(type, exception.getMessage());
+			return in.problems.unreachable();
+		}
 	}
 
 	public boolean mayConform(In in) throws IOException {
@@ -46,7 +51,7 @@ final class InlineRecordCodec extends CaseCodec<Object, In, Out> implements Expe
 		return false;
 	}
 
-	public boolean expects(In.At first) {
+	public boolean expects(Token first) {
 		return componentCodec instanceof Expecting e && e.expects(first);
 	}
 

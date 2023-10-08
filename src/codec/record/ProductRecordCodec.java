@@ -54,7 +54,7 @@ final class ProductRecordCodec<T> extends CaseCodec<T, In, Out> implements Expec
 
 	public boolean mayConform(In in) throws IOException {
 		// only for arrays
-		if (in.peek() != In.At.Array) return false;
+		if (in.peek() != Token.Array) return false;
 
 		int length = componentNames.length;
 		in.beginArray();
@@ -102,9 +102,9 @@ final class ProductRecordCodec<T> extends CaseCodec<T, In, Out> implements Expec
 		while (in.hasNext()) {
 			if (i < length) {
 				componentValues[i] = componentCodecs[i].decode(in);
-				componentFailed |= in.clearInstanceFailed();
+				componentFailed |= in.problems.raised();
 			} else {
-				in.unknown();
+				in.unknown(type);
 				in.skip();
 				componentFailed = true;
 			}
@@ -115,22 +115,24 @@ final class ProductRecordCodec<T> extends CaseCodec<T, In, Out> implements Expec
 
 		// this block handles missing components, when not enough components read from array
 		for (int j = i; j < length; j++) {
-			in.missing(componentNames[j], componentTypes[j]);
+		  in.missing("%s[%d]".formatted(componentNames[j], j), componentTypes[j], type);
 			componentFailed = true;
 		}
 
 		if (componentFailed) {
-			in.failInstance();
-			return null;
+			return in.problems.unreachable();
 		}
 
-		var instance = Reflect.newInstance(canonicalConstructor, componentValues);
-
-		return (T) instance;
+		try {
+			return (T) Reflect.newInstance(canonicalConstructor, componentValues);
+		} catch (RuntimeException exception) {
+			in.cannotInstantiate(type, exception.getMessage());
+			return in.problems.unreachable();
+		}
 	}
 
-	public boolean expects(In.At first) {
-		return first == In.At.Array;
+	public boolean expects(Token first) {
+		return first == Token.Array;
 	}
 
 	public String toString() {

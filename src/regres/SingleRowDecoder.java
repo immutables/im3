@@ -5,7 +5,6 @@ import io.immutables.codec.DefaultingCodec;
 import io.immutables.codec.In;
 import io.immutables.codec.Out;
 import io.immutables.meta.Null;
-import io.immutables.regres.SqlAccessor;
 import java.io.IOException;
 
 final class SingleRowDecoder extends Codec<Object, In, Out> {
@@ -40,7 +39,7 @@ final class SingleRowDecoder extends Codec<Object, In, Out> {
 
 			if (codec instanceof DefaultingCodec<Object, In, Out> defaulting
 				&& defaulting.providesDefault()) {
-				returnValue = defaulting.getDefault();
+				returnValue = defaulting.getDefault(in);
 			} else throw new SqlException("Cannot provide default/null value for the missing row");
 		}
 

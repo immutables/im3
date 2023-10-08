@@ -2,7 +2,7 @@ package io.immutables.declaration.test;
 
 import io.immutables.declaration.constrain.Size;
 
-import static io.immutables.declaration.constrain.Constrain.constrain;
+//import static io.immutables.declaration.constrain.Constrain.constrain;
 
 public class TestConstrain {
 	record X(
@@ -13,8 +13,8 @@ public class TestConstrain {
 		@Size(1) @Regex("1212121")
 		String hhhh) {
 		X {
-			constrain(this)
-				.require(a > 0 && a < 3);
+		/*	constrain(this)
+				.require(a > 0 && a < 3);*/
 		}
 	}
 }

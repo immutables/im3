@@ -47,8 +47,8 @@ final class ScalarCodecs {
 			return in.takeString();
 		}
 
-		public boolean expects(In.At first) {
-			return first == In.At.String;
+		public boolean expects(Token first) {
+			return first == Token.String;
 		}
 	}
 
@@ -61,11 +61,8 @@ final class ScalarCodecs {
 			return in.takeInt();
 		}
 
-		public boolean expects(In.At first) {
-			return switch (first) {
-				case Int, Float -> true;
-				default -> false;
-			};
+		public boolean expects(Token first) {
+			return first == Token.Int;
 		}
 	}
 
@@ -78,9 +75,9 @@ final class ScalarCodecs {
 			return in.takeLong();
 		}
 
-		public boolean expects(In.At first) {
+		public boolean expects(Token first) {
 			return switch (first) {
-				case Int, Long, Float -> true;
+				case Int, Long -> true;
 				default -> false;
 			};
 		}
@@ -95,7 +92,7 @@ final class ScalarCodecs {
 			return in.takeDouble();
 		}
 
-		public boolean expects(In.At first) {
+		public boolean expects(Token first) {
 			return switch (first) {
 				case Int, Long, Float -> true;
 				default -> false;
@@ -112,7 +109,7 @@ final class ScalarCodecs {
 			return (float) in.takeDouble();
 		}
 
-		public boolean expects(In.At first) {
+		public boolean expects(Token first) {
 			return switch (first) {
 				case Int, Long, Float -> true;
 				default -> false;
@@ -129,8 +126,8 @@ final class ScalarCodecs {
 			return in.takeBoolean();
 		}
 
-		public boolean expects(In.At first) {
-			return first == In.At.True || first == In.At.False;
+		public boolean expects(Token first) {
+			return first == Token.True || first == Token.False;
 		}
 	}
 
@@ -148,8 +145,8 @@ final class ScalarCodecs {
 			return true;
 		}
 
-		public boolean expects(In.At first) {
-			return first == In.At.Null;
+		public boolean expects(Token first) {
+			return first == Token.Null;
 		}
 	}
 }

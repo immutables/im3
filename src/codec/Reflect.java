@@ -60,7 +60,8 @@ public final class Reflect {
 	public static Constructor<?> getCanonicalConstructor(Class<?> record) {
 		if (!record.isRecord()) throw new IllegalArgumentException(
 			"Must be a record class, but it is not: " + record.getTypeName());
-		RecordComponent[] components = record.getRecordComponents();
+
+		var components = record.getRecordComponents();
 		constructors: for (var c : record.getDeclaredConstructors()) {
 			var parameterTypes = c.getParameterTypes();
 			// we do quick comparison avoiding creating any objects inside this loop

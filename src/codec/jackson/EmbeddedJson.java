@@ -50,8 +50,8 @@ public final class EmbeddedJson {
 			}
 		}
 
-		public boolean expects(In.At first) {
-			return first == In.At.String;
+		public boolean expects(Token first) {
+			return first == Token.String;
 		}
 
 		public String toString() {
