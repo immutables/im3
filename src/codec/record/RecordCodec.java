@@ -70,8 +70,7 @@ final class RecordCodec<T> extends CaseCodec<T, In, Out> implements Expecting {
 
 		if (names == null) names = in.index(componentNames);
 
-		int length = componentNames.length;
-		var componentPresent = new boolean[length];
+		var componentPresent = new boolean[componentNames.length];
 
 		in.beginStruct(names);
 
@@ -86,10 +85,10 @@ final class RecordCodec<T> extends CaseCodec<T, In, Out> implements Expecting {
 		}
 		in.endStruct();
 
-		for (int i = 0; i < length; i++) {
+		for (int i = 0; i < componentPresent.length; i++) {
 			if (!componentPresent[i]) {
 				if (componentCodecs[i] instanceof DefaultingCodec<Object, In, Out> defaulting
-						&& defaulting.providesDefault()) continue;
+						&& defaulting.hasDefault()) continue;
 				return false;
 			}
 		}
@@ -113,7 +112,7 @@ final class RecordCodec<T> extends CaseCodec<T, In, Out> implements Expecting {
 				return false;
 			}
 			// if we haven't matched field, just skip value and go to a next field
-			// it is necessary
+			// it is necessary to skip to proceed to a next field
 			in.skip();
 		}
 		in.endStruct(); // not strictly necessary as buffered 'in' supposed to be throw-away
@@ -188,7 +187,7 @@ final class RecordCodec<T> extends CaseCodec<T, In, Out> implements Expecting {
 		for (int i = 0; i < length; i++) {
 			if (!componentPresent[i]) {
 				if (componentCodecs[i] instanceof DefaultingCodec<Object, In, Out> defaulting
-						&& defaulting.providesDefault()) {
+						&& defaulting.hasDefault()) {
 					componentValues[i] = defaulting.getDefault(in);
 					componentFailed |= in.problems.raised();
 				} else {

@@ -24,7 +24,6 @@ public abstract class CodecFixture {
 	protected static <T> String toJson(Codec<T, In, Out> codec, T instance) throws IOException {
 		var w = new StringWriter();
 		try (var g = jsonFactory.createGenerator(w)) {
-			// ((JsonWriteContext)g.getOutputContext()).reset(JsonWriteContext.STATUS_OK_AS_IS);
 			var out = new JsonGeneratorOut(g);
 			codec.encode(out, instance);
 		}

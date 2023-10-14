@@ -46,7 +46,7 @@ final class ContainerCodecs {
 			return Optional.empty();
 		}
 
-		public boolean providesDefault() {
+		public boolean hasDefault() {
 			return true;
 		}
 
@@ -74,7 +74,7 @@ final class ContainerCodecs {
 			return OptionalInt.empty();
 		}
 
-		public boolean providesDefault() {
+		public boolean hasDefault() {
 			return true;
 		}
 
@@ -98,7 +98,7 @@ final class ContainerCodecs {
 			return OptionalLong.empty();
 		}
 
-		public boolean providesDefault() {
+		public boolean hasDefault() {
 			return true;
 		}
 
@@ -122,7 +122,7 @@ final class ContainerCodecs {
 			return OptionalDouble.empty();
 		}
 
-		public boolean providesDefault() {
+		public boolean hasDefault() {
 			return true;
 		}
 
@@ -159,7 +159,7 @@ final class ContainerCodecs {
 			return List.of();
 		}
 
-		@Override public boolean providesDefault() {
+		@Override public boolean hasDefault() {
 			return true;
 		}
 
@@ -204,7 +204,7 @@ final class ContainerCodecs {
 			return Set.of();
 		}
 
-		public boolean providesDefault() {
+		public boolean hasDefault() {
 			return true;
 		}
 
@@ -322,7 +322,7 @@ final class ContainerCodecs {
 			return Map.of();
 		}
 
-		public boolean providesDefault() {
+		public boolean hasDefault() {
 			return true;
 		}
 

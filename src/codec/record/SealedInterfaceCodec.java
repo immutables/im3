@@ -70,7 +70,7 @@ final class SealedInterfaceCodec extends DefaultingCodec<Object, In, Out> {
 		}
 	}
 
-	public void encode(Out out, Object instance) throws IOException {
+	@Override public void encode(Out out, Object instance) throws IOException {
 		@Null var c = cases.get(instance.getClass());
 		if (c == null) throw new RuntimeException(
 				"Unexpected subclass of %s of %s".formatted(instance.getClass(), raw));
@@ -82,7 +82,7 @@ final class SealedInterfaceCodec extends DefaultingCodec<Object, In, Out> {
 		}
 	}
 
-	public @NullUnknown Object decode(In in) throws IOException {
+	@Override public @NullUnknown Object decode(In in) throws IOException {
 		In.Buffer buffer = in.takeBuffer();
 
 		@Null Codec<Object, In, Out> actualCodec = null;
@@ -104,11 +104,11 @@ final class SealedInterfaceCodec extends DefaultingCodec<Object, In, Out> {
 		return in.problems.unreachable();
 	}
 
-	public boolean providesDefault() {
+	@Override public boolean hasDefault() {
 		return reflectiveDefault != null;
 	}
 
-	public @Null Object getDefault(In in) throws IOException {
+	@Override public @Null Object getDefault(In in) throws IOException {
 		if (reflectiveDefault != null)
 			try {
 				return Reflect.constructValue(reflectiveDefault);
@@ -120,7 +120,7 @@ final class SealedInterfaceCodec extends DefaultingCodec<Object, In, Out> {
 		return null;
 	}
 
-	public String toString() {
+	@Override public String toString() {
 		return getClass().getSimpleName() + "<" + type.getTypeName() + ">";
 	}
 }

@@ -31,7 +31,7 @@ public class Codecs {
 				return null;
 			}
 
-			public boolean providesDefault() {
+			public boolean hasDefault() {
 				return true;
 			}
 

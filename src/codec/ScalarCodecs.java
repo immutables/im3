@@ -141,7 +141,7 @@ final class ScalarCodecs {
 			return null;
 		}
 
-		public boolean providesDefault() {
+		public boolean hasDefault() {
 			return true;
 		}
 

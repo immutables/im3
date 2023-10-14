@@ -49,7 +49,7 @@ final class EnumCodec<E extends Enum<E>> extends CaseCodec<E, In, Out> implement
 		return defaultConstant;
 	}
 
-	public boolean providesDefault() {
+	public boolean hasDefault() {
 		return defaultConstant != null;
 	}
 

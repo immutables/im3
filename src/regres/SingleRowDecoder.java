@@ -38,7 +38,7 @@ final class SingleRowDecoder extends Codec<Object, In, Out> {
 					"Use @Single(optional=true) to allow no results.");
 
 			if (codec instanceof DefaultingCodec<Object, In, Out> defaulting
-				&& defaulting.providesDefault()) {
+				&& defaulting.hasDefault()) {
 				returnValue = defaulting.getDefault(in);
 			} else throw new SqlException("Cannot provide default/null value for the missing row");
 		}
