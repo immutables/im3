@@ -237,8 +237,12 @@ class Emitter extends Stencil.Raw {
 			render(ifScope, then.content());
 		}
 		ifln();
-		// actually scope, not ifScope, no new vars in else from if/ifelse
-		i.otherwise().ifPresent(e -> render(scope, e.content()));
+		i.otherwise().ifPresent(e -> {
+			ifln();
+			put("__.dl();}else{__.dl();").ln();
+			// actually scope, not ifScope, no new vars in else from if/ifelse
+			render(scope, e.content());
+		});
 		ifln();
 		put("__.dl();}//if").ln();
 	}
