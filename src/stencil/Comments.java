@@ -67,7 +67,7 @@ public class Comments extends Stencil.Raw {
 		}
 
 		default void content(Stream<? extends CharSequence> lines) {
-			content(lines.collect(Collectors.toList()));
+			content(lines.toList());
 		}
 	}
 }

@@ -228,7 +228,7 @@ class Emitter extends Stencil.Raw {
 				ifScope = scope.extend(":if");
 			} else {
 				ifln();
-				put("}else if(");
+				put("__.dl();}else if(");
 				ifScope = scope.extend(":else:if");
 			}
 			ifCondition(then.condition(), ifScope);

@@ -96,7 +96,9 @@ public class Output {
 	}
 
 	public void trimWhitespaceAfter() {
-		trimWhitespaceAfter = raw.length();
+		if (trimWhitespaceAfter == NOPE) {
+			trimWhitespaceAfter = raw.length();
+		}
 	}
 
 	//[>-]

@@ -169,8 +169,8 @@ class ExpressionContent {
 	// :: <TypeName>
 	// ::<A.Bb.Cc val>
 	private static final Pattern renamingCast = Pattern.compile(
-		"::\\s*<\\s*([A-Z][_a-zA-Z0-9]*(\\s*\\.\\s*[A-Z][_a-zA-Z0-9]*)*)(\\s+[_a-zA-Z][_a-zA-Z0-9]*)" +
-			"\\s*>", Pattern.MULTILINE);
+		"\\.\\s*\\(\\s*([A-Z][_a-zA-Z0-9]*(\\s*\\.\\s*[A-Z][_a-zA-Z0-9]*)*)(\\s+[_a-zA-Z][_a-zA-Z0-9]*)" +
+			"\\s*\\)", Pattern.MULTILINE);
 
 	// consecutive hashes #
 	private static final Pattern iterationCounters = Pattern.compile(
@@ -190,7 +190,7 @@ class ExpressionContent {
 			ooo() *""", "aa"::equals));
 
 		var bc = new ExpressionContent("""
-			aa:: <TypeOf.Int az>
+			aa.(TypeOf.Int az)
 			""", new ArrayList<>());
 
 		var localScope = new LocalScope(null, "");

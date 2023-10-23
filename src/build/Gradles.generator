@@ -48,9 +48,9 @@ io.immutables.codec.record.DefaultMetadataProvider
 // [m.name]
 dependencies {
 [for d : m.dependencies]
-	[if d.module::<SourceModule sm>]
+	[if d.module.(SourceModule sm)]
 	[scope(d, m)] project(":[sm.relative.toString.replace('/', '.')]")
-	[else if d.module::<VendorModule vm>]
+	[else if d.module.(VendorModule vm)]
 	[for jar : vm.classJars]
 	[scope(d, m)] "[jar.gav]"
 	[/for]

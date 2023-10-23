@@ -5,10 +5,17 @@
 [generate()]
 [-- Such a comment ]
 Gen1[a]dbb[nnn]
-[/]
 
-[a()]
-a
+//before
+[case retention]
+	[CLASS->]//!Class
+
+	[RUNTIME->]//!Runtime
+
+	[else]
+	//!Source maybe
+[/case]
+//after
 [/]
 
 [name(int a, String b)]
@@ -20,4 +27,5 @@ Line1
 
 	[for c : c.c.c, if c, g = 1] [runi(_)][g][/]  [/]
 Line2
+
 [/name]

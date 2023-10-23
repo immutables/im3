@@ -91,13 +91,15 @@ class BrainDeadParser {
 					advanceUntilMatching(']');
 					addImport(from, p);
 				} else if (definition()) {
-
+					ack();
 				} else {
 					error("Unrecognized declaration, template signature expected");
 				}
 			}
 		}
 	}
+
+	private void ack() {/* no-op intentionally, just confirming our choice */}
 
 	private void addComment(int from, int to) {
 		elements.add(new Templating.Comment(from, to, content(from, to)));
@@ -294,42 +296,47 @@ class BrainDeadParser {
 			} else if (startsWithKeyword(tag, "if")) {
 				int atIf = content.indexOf("if");
 				assert atIf >= 0;
-				p = atIf + "if" .length() + from;
+				p = atIf + "if".length() + from;
 				assert scanner != null;
 				scanner = parseIf(scanner, from, to);
 				p = to;
 			} else if (startsWithKeyword(tag, "for")) {
 				int atFor = content.indexOf("for");
 				assert atFor >= 0;
-				p = atFor + "for" .length() + from;
+				p = atFor + "for".length() + from;
 				assert scanner != null;
 				scanner = parseFor(scanner, from, to);
 				p = to;
 			} else if (startsWithKeyword(tag, "let")) {
 				int atLet = content.indexOf("let");
 				assert atLet >= 0;
-				p = atLet + "let" .length() + from;
+				p = atLet + "let".length() + from;
 				assert scanner != null;
 				scanner = parseLet(scanner, from, to);
 				p = to;
 			} else if (startsWithKeyword(tag, "case")) {
 				int atCase = content.indexOf("case");
 				assert atCase >= 0;
-				p = atCase + "case" .length() + from;
+				p = atCase + "case".length() + from;
 				assert scanner != null;
 				scanner = parseCase(scanner, from, to, content(p, to));
 				p = to;
 			} else if (tag.equals("else") || startsWithKeyword(tag, "else")) {
-				if (startsWithKeyword(tag.substring("else" .length()).trim(), "if")) {
+				if (startsWithKeyword(tag.substring("else".length()).trim(), "if")) {
 					int atIf = content.indexOf("if");
 					assert atIf > 0; // and even move because of the `else`
-					p = atIf + "if" .length() + from;
+					p = atIf + "if".length() + from;
 					proceed(from, to, "else if");
 					p = to;
 				} else {
+					// we handled "else if" above, so we're
+					// not allowing any other trailing content
+					if (!tag.equals("else")) {
+						error("not a supported tag: " + tag, from, to);
+					}
 					int atElse = content.indexOf("else");
 					assert atElse >= 0;
-					p = atElse + "else" .length() + from;
+					p = atElse + "else".length() + from;
 					proceed(from, to, "else");
 					p = to;
 				}
@@ -787,6 +794,7 @@ class BrainDeadParser {
 		}
 
 		private void endEither(int to) {
+			assert eitherExpression != null;
 			either.add(new Templating.Case.Either(
 				eitherFrom, to,
 				bindingExpressionOf(eitherExpression),
