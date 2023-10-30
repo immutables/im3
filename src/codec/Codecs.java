@@ -146,9 +146,6 @@ public class Codecs {
 
 		@Override public AtPath path() {
 			return AtPath.Root.Root;
-			// this is only if some codec called it
-			// will this ever be needed, and if needed,
-			// maybe we'll have to pass a good real path
 		}
 
 		public String takeString() {
@@ -165,7 +162,7 @@ public class Codecs {
 			assert value != null;
 			if (value instanceof Boolean b) return b;
 			return switch (value.toString()) {
-				// this is JSON syntax, parseBoolean differs
+				// this is JSON syntax, parseBoolean more lax
 				case "true" -> true;
 				case "false" -> false;
 				default -> {

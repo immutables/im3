@@ -75,6 +75,6 @@ public final class Reflect {
 			}
 		}
 		throw new AssertionError(
-			"Record must have cannonical constructor compiled: " + record);
+			"Record must have canonical constructor compiled: " + record);
 	}
 }

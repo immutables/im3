@@ -15,19 +15,25 @@ In the file
 		[if true]
 	[good]\[[range(7)...], [/]\]
 	is
-	u
 		[/]
 		[template2]
 	drop whitespace [>-]       UP TO HERE       [-<]!!!
 	[>-]
 
 	    sdsd
-
-
 	    asdasd
-
 	       [-<]
 [/]
+
+[template3(Cc cc)]
+
+[if cc.(Aa)]
+IF
+[else if cc.(Bb b)]
+ELSE
+[/if]
+
+[/template3]
 
 [template2()]
 [for r : List.of("abra", "cadabra", "focus", "pocus")]

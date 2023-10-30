@@ -100,7 +100,7 @@ final class SealedInterfaceCodec extends DefaultingCodec<Object, In, Out> {
 			return actualCodec.decode(buffer.in());
 		}
 
-		in.noMatchingCase(type);
+		in.noMatchingCase(type); //!!! Diagnose the value
 		return in.problems.unreachable();
 	}
 

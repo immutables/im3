@@ -20,28 +20,19 @@ public sealed interface Problem {
 	AtPath at();
 
 	record MissingField(AtPath at, String field, Type componentType, Type recordType)
-			implements Problem {
-		// @Override public String toString() {
-		// 	return "at %s: Missing field '%s' of type %s within record type %s"
-		// 			.formatted(at, field,
-		// 					componentType.getTypeName(), recordType.getTypeName());
-		// }
-	}
+			implements Problem {}
 
-	// not used yet
-	record UnknownField(AtPath at, String field, Token token, Type recordType) implements Problem {}
+	record UnknownField(AtPath at, String field, Type recordType, Token token)
+			implements Problem {}
 
-	record CannotInstantiate(AtPath at, Type recordType) implements Problem {}
+	record CannotInstantiate(AtPath at, Type recordType, String message)
+			implements Problem {}
 
 	record UnexpectedToken(AtPath at, String expected, String actual, Token token)
-			implements Problem {
-		// @Override public String toString() {
-		// 	return "at %s: Expected %s, but was %s, token: %s"
-		// 			.formatted(at, expected, actual, token);
-		// }
-	}
+			implements Problem {}
 
-	record NoMatchingCase(AtPath at, Type sealedType) implements Problem {}
+	record NoMatchingCase(AtPath at, Type sealedType)
+			implements Problem {}
 
 	/**
 	 * Handler provides the strategy how to handle problems. Either turn them in fatal
@@ -57,7 +48,7 @@ public sealed interface Problem {
 		 * Enqueues problem, raising error flag. Implementation may choose to be fail-fast
 		 * and to throw {@link IOException} instead of collecting problems.
 		 * Handler may also drop problem after reaching some limit and raising
-		 * {@link #isOverflowed() flag.
+		 * {@link #isOverflowed()} flag.
 		 */
 		public abstract void enque(Problem problem) throws IOException;
 		/** Lists collected problems */
@@ -85,7 +76,7 @@ public sealed interface Problem {
 	 */
 	Handler ThrowingHandler = new Handler() {
 		@Override public void enque(Problem problem) throws IOException {
-			throw new IOException(problem.toString());
+			throw new IOException(Problem.toString(problem));
 		}
 
 		@Override public List<Problem> list() {
@@ -167,5 +158,31 @@ public sealed interface Problem {
 						.formatted(Problem.class.getSimpleName(), limit, enqued.size());
 			}
 		};
+	}
+
+	static String toString(Problem problem) {
+		if (problem instanceof MissingField f) {
+			return "at %s: Missing field '%s' of type %s within record type %s"
+					.formatted(f.at, f.field,
+							f.componentType.getTypeName(), f.recordType.getTypeName());
+		}
+		if (problem instanceof UnexpectedToken t) {
+			return "at %s: Expected `%s`, but was `%s`, token: %s"
+					.formatted(t.at, t.expected, t.actual, t.token);
+		}
+		if (problem instanceof CannotInstantiate c) {
+			return "at %s: Cannot instantiate %s: %s"
+					.formatted(c.at, c.recordType.getTypeName(), c.message);
+		}
+		if (problem instanceof NoMatchingCase m) {
+			return "at %s: No matching case for variant type %s"
+					.formatted(m.at, m.sealedType.getTypeName());
+		}
+		if (problem instanceof UnknownField u) {
+			return "at %s: Unknown field '%s' for type %s, value token: %s"
+					.formatted(u.at, u.field, u.recordType.getTypeName(), u.token);
+		}
+		// TODO switch to a switch when on Java 21+
+		throw new AssertionError("Not an exhaustive match");
 	}
 }

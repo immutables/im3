@@ -82,8 +82,8 @@ class ExpressionContent {
 		Matcher m = renamingCast.matcher(expression);
 		while (m.find()) {
 			var typeName = m.group(1);
-			@Null var variableName = m.group(3);
 			var javaReplacement = " instanceof " + typeName;
+			@Null var variableName = m.group(3);
 			if (variableName != null) {
 				// we don't check here if local is a keyword, let java stumble on it
 				var n = variableName.trim();
@@ -99,8 +99,8 @@ class ExpressionContent {
 	}
 
 	private static StringBuilder expandLiterals(
-		CharSequence expression, List<String> literals) {
-
+			CharSequence expression, List<String> literals
+	) {
 		var expanded = new StringBuilder();
 		Matcher m = literalReference.matcher(expression);
 		while (m.find()) {
@@ -112,8 +112,8 @@ class ExpressionContent {
 	}
 
 	private static StringBuilder expandIterations(
-		CharSequence expression, LocalScope scope) {
-
+		CharSequence expression, LocalScope scope
+	) {
 		var expanded = new StringBuilder();
 		Matcher m = iterationCounters.matcher(expression);
 		while (m.find()) {
@@ -131,7 +131,8 @@ class ExpressionContent {
 	}
 
 	private static StringBuilder expandAccessors(
-		CharSequence expression, Predicate<String> isLocal) {
+		CharSequence expression, Predicate<String> isLocal
+	) {
 		var expanded = new StringBuilder();
 		Matcher m = accessorPattern.matcher(expression);
 		while (m.find()) {
@@ -166,10 +167,11 @@ class ExpressionContent {
 	private static final Pattern literalReference = Pattern.compile("@@([0-9]+)@@");
 
 	// matches
-	// :: <TypeName>
-	// ::<A.Bb.Cc val>
+	// .(TypeName)
+	// .(A.Bb.Cc val)
+	// this is a second iteration of the syntax, somewhat inspired by Go type assertions
 	private static final Pattern renamingCast = Pattern.compile(
-		"\\.\\s*\\(\\s*([A-Z][_a-zA-Z0-9]*(\\s*\\.\\s*[A-Z][_a-zA-Z0-9]*)*)(\\s+[_a-zA-Z][_a-zA-Z0-9]*)" +
+		"\\.\\s*\\(\\s*([A-Z][_a-zA-Z0-9]*(\\s*\\.\\s*[A-Z][_a-zA-Z0-9]*)*)(\\s+[_a-zA-Z][_a-zA-Z0-9]*)?" +
 			"\\s*\\)", Pattern.MULTILINE);
 
 	// consecutive hashes #

@@ -24,8 +24,8 @@ import io.immutables.meta.Null;
  * version is that it can work with regular unicode-ish support of {@link Character#isUpperCase(char)}/{@link String#toLowerCase()}/{@link String#toUpperCase()}
  * and it will still work probably fine with latin-1 available in new JDKs.
  *
- * @author Mike Bostock (originally, from Guava)
- * @author Ievgen Lukash (refinements, simplify & modernize)
+ * @author Mike Bostock (original version from Guava)
+ * @author Ievgen Lukash (refinements, simplified and modernized)
  */
 public enum CaseFormat {
   /** Hyphenated variable naming convention, e.g., "lower-hyphen". */

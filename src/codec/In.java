@@ -72,7 +72,7 @@ public abstract class In {
 	}
 
 	public void cannotInstantiate(Type type, String message) throws IOException {
-		problems.enque(new Problem.CannotInstantiate(path(), type));
+		problems.enque(new Problem.CannotInstantiate(path(), type, message));
 	}
 
 	public void noMatchingCase(Type sealedType) throws IOException {
