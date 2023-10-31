@@ -34,7 +34,7 @@ public abstract class Stencil {
 	/**
 	 * Raw base class provides access to the current output
 	 */
-	public abstract static class Raw extends Stencil {
+	public abstract static class Raw extends Privileged {
 		@Override public Output out() {
 			return super.out();
 		}

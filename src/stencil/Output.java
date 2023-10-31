@@ -17,7 +17,7 @@ public class Output {
 	private boolean indentExpected = false;
 	private boolean shouldSkipBlankLine = false;
 	private int lineStartAt = 0;
-	private int trimWhitespaceAfter = NOPE;
+	int trimWhitespaceAfter = NOPE;
 
 	@SkippableReturn
 	public Output ln() {
@@ -75,8 +75,6 @@ public class Output {
 	}
 
 	boolean skipBlankLine() {
-		trimWhitespaceAfter = NOPE;//FIXME ??? should we drop it here
-
 		if (shouldSkipBlankLine) {
 			shouldSkipBlankLine = false;
 			// from the beginning of the previous line (before we updated that value)
@@ -250,5 +248,5 @@ public class Output {
 		void output(Output output);
 	}
 
-	private static final int NOPE = -1;
+	static final int NOPE = -1;
 }

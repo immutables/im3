@@ -49,16 +49,21 @@ public class TemplateSupport extends Stencil.Raw {
 	}
 
 	public StringBuilder let(Runnable runnable) {
-		var o = out();
-		int wasLength = o.raw.length();
+		var letOutput = new Output();
+		var wasOutput = reset(letOutput);
 
+		dl();
 		runnable.run();
+		dl();
 
-		int nowLength = o.raw.length();
-		var captured = new StringBuilder(nowLength - wasLength);
-		captured.append(o.raw, wasLength, nowLength);
-		o.raw.setLength(wasLength);
-		return captured;
+		reset(wasOutput);
+
+		// dls to handle similarly to blocks, we activate skip blank line.
+		// Because blocks are rendered in line, next line would simply do that,
+		// but because `let` capture is taken out of regular flow,
+		// we trigger this to remove trailing space
+		letOutput.skipBlankLine();
+		return letOutput.raw;
 	}
 
 	public void $(Supplier<?> s) {

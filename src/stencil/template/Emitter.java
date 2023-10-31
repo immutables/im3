@@ -91,9 +91,9 @@ class Emitter extends Stencil.Raw {
 					case Before -> put("__.tb();");
 				}
 			} else if (content instanceof Expression e) {
-				put("__.$(()->", e.expression().expand(scope), ");");
+				renderExpression(scope, e);
 			} else if (content instanceof BlockExpression b) {
-				renderBlock(scope, b);
+				renderTranscludeBlock(scope, b);
 			} else if (content instanceof If i) {
 				renderIf(scope, i);
 			} else if (content instanceof CompactIf c) {
@@ -109,6 +109,10 @@ class Emitter extends Stencil.Raw {
 			}
 		}
 		out().indents--;
+	}
+
+	private void renderExpression(LocalScope scope, Expression e) {
+		put("__.$(()->", e.expression().expand(scope), ");");
 	}
 
 	private void renderCase(LocalScope scope, Case c) {
@@ -132,7 +136,7 @@ class Emitter extends Stencil.Raw {
 			render(scope, otherwise.content());
 			put("__.dl();}").ln();
 		});
-		put("}//case").ln();
+		put("}__.dl();//case").ln();
 	}
 
 	private void renderSpread(LocalScope scope, Spread s) {
@@ -151,7 +155,7 @@ class Emitter extends Stencil.Raw {
 		ifln();
 		render(spreadScope, s.content());
 		put("__.dl();}").ln();
-		put("__.$(", spreadElementId, ");}}//...").ln();
+		put("__.$(", spreadElementId, ");}}__.dl();//...").ln();
 	}
 
 	private void renderFor(LocalScope scope, For f) {
@@ -187,7 +191,7 @@ class Emitter extends Stencil.Raw {
 		ln();
 		render(forScope, f.content());
 		ifln();
-		put("__.dl();", "}".repeat(bracesToClose), "//for").ln();
+		put("__.dl();", "}".repeat(bracesToClose), "__.dl();//for").ln();
 	}
 
 	private void renderLet(LocalScope scope, Let l) {
@@ -195,7 +199,7 @@ class Emitter extends Stencil.Raw {
 		put("final var ", l.identifier(), "=__.let(()->{").ln();
 		render(scope.extend(l.identifier()), l.content());
 		ifln();
-		put("});//let").ln();
+		put("});__.dl();//let").ln();
 		scope.declare(l.identifier());
 	}
 
@@ -206,15 +210,14 @@ class Emitter extends Stencil.Raw {
 		ifCondition(c.then().condition(), ifScope);
 		put("){__.dl();").ln();
 		render(ifScope, c.then().content());
-		ifln();
-		put("__.dl();}");
 		c.otherwise().ifPresent(e -> {
-			put("else{__.dl();").ln();
+			ifln();
+			put("__.dl();}else{__.dl();").ln();
 			// regular scope in if
 			render(scope, e.content());
-			ifln();
-			put("__.dl();}//if?").ln();
 		});
+		ifln();
+		put("__.dl();}__.dl();// if").ln();
 	}
 
 	private void renderIf(LocalScope scope, If i) {
@@ -236,7 +239,6 @@ class Emitter extends Stencil.Raw {
 			put("){__.dl();").ln();
 			render(ifScope, then.content());
 		}
-		ifln();
 		i.otherwise().ifPresent(e -> {
 			ifln();
 			put("__.dl();}else{__.dl();").ln();
@@ -244,7 +246,7 @@ class Emitter extends Stencil.Raw {
 			render(scope, e.content());
 		});
 		ifln();
-		put("__.dl();}//if").ln();
+		put("__.dl();}__.dl();//if").ln();
 	}
 
 	private void ifCondition(ExpressionContent condition, LocalScope scope) {
@@ -255,7 +257,7 @@ class Emitter extends Stencil.Raw {
 		else put("$if(", expression, ")");
 	}
 
-	private void renderBlock(LocalScope scope, BlockExpression b) {
+	private void renderTranscludeBlock(LocalScope scope, BlockExpression b) {
 		ifln();
 		put("{final var __block__=__.bl(()->{").ln();
 		render(scope.extend(b.expression().toString()), b.content());
@@ -268,5 +270,5 @@ class Emitter extends Stencil.Raw {
 		return "__" + base + idCounter.getAndIncrement();
 	}
 
-	public static final String dasheshAllTheWay = "-" .repeat(80);
+	public static final String dasheshAllTheWay = "-".repeat(80);
 }
