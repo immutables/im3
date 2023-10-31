@@ -27,7 +27,7 @@ public abstract class Codec<T, I extends In, O extends Out> {
 	/**
 	 * Encodes an instance to the output medium.
 	 */
-	public abstract void encode(O out, T instance) throws IOException;
+	public abstract void encode(O out, @NullUnknown T instance) throws IOException;
 
 	/**
 	 * Decodes an instance.
