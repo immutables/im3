@@ -1,4 +1,4 @@
-package io.immutables.declaration.processor;
+package dev.declaration.processor;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -56,7 +56,7 @@ public final class Substitutions {
 				c.comment());
 	}
 
-	interface SyntheticReferenceGenerator {
+	public interface SyntheticReferenceGenerator {
 		Declaration.Reference forApplied(Declaration.Reference reference, List<Type> arguments);
 	}
 
@@ -75,7 +75,6 @@ public final class Substitutions {
 				assert genericDeclaration instanceof Declaration.Parameterizable;
 				var parameters = ((Declaration.Parameterizable) genericDeclaration).parameters();
 				var substitutions = appliesArguments(parameters, arguments);
-
 				// cases for inline, record, and sealed (of records)
 				// No case for Enum as case is not parameterizable
 				if (genericDeclaration instanceof Declaration.Inline inline) {
@@ -92,14 +91,15 @@ public final class Substitutions {
 									.toList(),
 							record.comment());
 				}
-				if (genericDeclaration instanceof Declaration.Sealed sealed) {
+				//TODO Add such support
+				//if (genericDeclaration instanceof Declaration.Sealed sealed) {
 					/*return new Declaration.Sealed(
 							Declaration.Sealed.Tag.Is, reference, List.of(),
 							sealed.cases().stream().map(caseRecord -> {
 								//specialize().reference();
 							}).toList(),
 							sealed.comment());*/
-				}
+				//}
 				throw new AssertionError("Unsupported declaration %s of type %s"
 						.formatted(genericDeclaration.reference(), genericDeclaration.getClass()));
 			}
@@ -117,7 +117,7 @@ public final class Substitutions {
 				assert genericDeclaration instanceof Declaration.Parameterizable p
 						&& !p.parameters().isEmpty();
 
-				var declaration = syntheticDeclarations.computeIfAbsent(
+				syntheticDeclarations.computeIfAbsent(
 						reference,
 						t -> specializer.specialize(reference, genericDeclaration, a.arguments()));
 

@@ -1,23 +1,32 @@
-package io.immutables.declaration.processor;
+package dev.declaration.processor;
 
 import io.immutables.meta.Null;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import javax.lang.model.type.TypeMirror;
 
 /**
  * Declaration represent type as defined, not how it's used or referenced.
- * These are only for nominal types, user-defined and maybe some synthetic)
+ * These are only for nominal types, user-defined (and maybe some synthetic)
  * and not for builtin primitives.
  */
 public sealed interface Declaration extends Documented {
+	// TODO move to the top level, rename?
+	record Module(
+		String name,
+		List<Declaration> declarations,
+		List<String> comment
+	) implements Documented {}
+
 	/**
 	 * Symbolic reference to a Declaration, which needs to be resolved/de-referenced
 	 * to a real declaration. We use it to marshall and pass declarations around by-reference.
 	 */
+	// TODO Move to top level
 	record Reference(
-			String module,
-			String name) {}
+		String module,
+		String name) {}
 
 	Reference reference();
 
@@ -33,6 +42,8 @@ public sealed interface Declaration extends Documented {
 		List<Type.Variable> parameters();
 	}
 
+	// TODO extract to top level and nest datatypes there
+	// Do this before doing switch with pattern matching
 	sealed interface Datatype extends Declaration {}
 
 	record Inline(
@@ -40,9 +51,9 @@ public sealed interface Declaration extends Documented {
 		Reference reference,
 		List<Type.Variable> parameters,
 		Component component,
-		String comment
+		List<String> comment
 	) implements Datatype, Parameterizable {
-		public enum Tag {Is}
+		public enum Tag { Is }
 	}
 
 	record Product(
@@ -50,9 +61,10 @@ public sealed interface Declaration extends Documented {
 		Reference reference,
 		List<Type.Variable> parameters,
 		List<Component> components,
-		String comment
+		List<String> comment
 	) implements Datatype, Parameterizable {
-		public enum Tag {Is}
+		public enum Tag { Is }
+
 		public Product {
 			assert components.size() >= 2;
 		}
@@ -62,9 +74,11 @@ public sealed interface Declaration extends Documented {
 		Tag enums,
 		Reference reference,
 		List<Constant> constants,
-		String comment) implements Datatype {
-		public enum Tag {Is}
-		record Constant(String name) {}
+		List<String> comment
+	) implements Datatype {
+		public enum Tag { Is }
+
+		record Constant(String name, List<String> comment) implements Documented {}
 	}
 
 	record Record(
@@ -72,32 +86,47 @@ public sealed interface Declaration extends Documented {
 		Reference reference,
 		List<Type.Variable> parameters,
 		List<Component> components,
-		String comment
+		List<String> comment
 	) implements Datatype, Parameterizable {
-		public enum Tag {Is}
+		public enum Tag { Is }
+
+		boolean hasRequired() {
+			return components.stream().anyMatch(Component::required);
+		}
 	}
 
 	record Sealed(
 		Tag sealed,
 		Reference reference,
 		List<Type.Variable> parameters,
-		List<Declaration> cases,
-		String comment
+		List<Datatype> cases,
+		List<String> comment
 	) implements Datatype, Parameterizable {
-		public enum Tag {Is}
+		public enum Tag { Is }
 	}
 
-	record Component(String name, Type type, String javaType, String comment)
-		implements Documented {}
+	record Component(String name, Type type, String javaType, List<String> comment)
+		implements Documented {
+		/**
+		 * If component can be omitted, but a record can still be constructed
+		 * with some default value, usually {@code null}
+		 */
+		boolean required() {
+			return type != Type.Primitive.Null
+				&& type != Type.Primitive.Void
+				&& !(type instanceof Type.Container);
+			// We don't have a mechanism yet to require array hardly (except for validation)
+		}
+	}
 
 	record Contract(
 		Tag contract,
 		Reference reference,
 		String pathPrefix,
 		Map<String, Operation> operations,
-		String comment
+		List<String> comment
 	) implements Declaration {
-		public enum Tag {Is}
+		public enum Tag { Is }
 	}
 
 	record Operation(
@@ -108,39 +137,46 @@ public sealed interface Declaration extends Documented {
 		List<Thrown> thrown,
 		List<Parameter> parameters,
 		List<FixedQuery> fixedQuery,
-		String comment
+		List<String> comment
 	) implements Documented {}
 
 	record FixedQuery(String name, @Null String value) {}
 
 	record Return(
 		Type type,
-		int status
-	) {}
+		TypeMirror javaType,
+		int status,
+		List<String> comment
+	) implements Documented {}
 
 	record Thrown(
 		Type type,
+		TypeMirror javaType,
 		int status,
-		Optional<Type> bodyType
-	) {}
+		Optional<Type> bodyType,
+		List<String> comment
+	) implements Documented {}
 
 	record Parameter(
 		String name,
 		String httpName,
 		int index,
 		Type type,
+		TypeMirror javaType,
 		Mapping mapping,
-		String comment
+		boolean required,
+		List<String> comment
 	) implements Documented {
 		public enum Mapping {
 			Path,
 			Query,
-			Body, Unmapped,
+			Body,
+			Unmapped,
 			// Header, Matrix // Who needs these?
 		}
 	}
 
-	// These are uppercase to mimic HTTPs method spelling
+	// These are all-uppercase to mimic HTTPs method spelling
 	enum HttpMethod {
 		GET,
 		PUT,

@@ -13,7 +13,7 @@ import java.lang.annotation.Target;
  * but are initialized relatively late (with some init or setter method),
  * but must not be used before it is initialized. This is not checked at compile/lint time,
  * so it just avoids warnings for such field when {@link NonnullByDefault} is used.
- * An alternative would be marking these fields as @{@link Null} and check it
+ * An alternative would be marking these fields as {@link Null @Null} and check it
  * (or {@code assert field != null}) to silence the warning.
  */
 @Nonnull(when = When.UNKNOWN)

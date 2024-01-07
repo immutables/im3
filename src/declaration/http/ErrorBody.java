@@ -1,4 +1,4 @@
-package io.immutables.declaration.http;
+package dev.declaration.http;
 
 import java.util.Optional;
 

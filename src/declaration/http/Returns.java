@@ -1,4 +1,4 @@
-package io.immutables.declaration.http;
+package dev.declaration.http;
 
 /**
  * Returns annotation is to be implemented by exceptions and other return types to specify actual

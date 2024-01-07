@@ -1,0 +1,47 @@
+[import
+  java.util.List
+  dev.declaration.processor.Declaration
+  static dev.declaration.processor.Declaration.*
+]
+
+[generate(Declaration.Module module)]
+  [for d : module.declarations, if d.(Contract c)]
+    [sources.inPackage(c.module, ".mvc").name(c.name).java _]
+[contractInterface(c)]
+    [/]
+  [/for]
+[/]
+
+[contractInterface(Contract c)]
+package [c.module].mvc;
+
+import org.springframework.web.bind.annotation.*;
+
+@io.immutables.meta.NonnullByDefault
+@RestController
+public interface [c.name] extends [c.module].[c.name] {
+  [for op : c.operations.values]
+
+  [operationMethod(op)]
+  [/for]
+}
+[/]
+
+[operationMethod(Operation op)]
+/** {@inheritDoc} */
+@java.lang.Override
+@ResponseBody
+@[capitalize(op.method)]Mapping("[pathOf(op)]")
+[stringify(op.returns.type, op.returns.javaType)] [op.name](
+  [for p : op.parameters][#?],
+  [/][operationParameter(p)][/for])[op.thrown?]
+  throws [for t : op.thrown][#?], [/][stringify(t.type, t.javaType)][//];
+[/]
+
+[operationParameter(Parameter p)][void]
+[case p.mapping]
+  [Path ->]@PathVariable("[p.name]") [/]
+  [Query ->]@RequestParam([p.required?]"[p.name]"[:]name = "[p.name]", required = false[/]) [/]
+  [Body ->]@RequestBody [/]
+[/case]
+[/void][stringify(p.type, p.javaType)] [p.name][/]

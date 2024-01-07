@@ -1,0 +1,303 @@
+[import
+  java.util.List
+  java.util.Set
+  dev.declaration.processor.Type
+  dev.declaration.processor.Documented
+  dev.declaration.processor.Declaration
+  dev.declaration.processor.VariantFeature
+  static dev.declaration.processor.Declaration.*
+  static dev.declaration.processor.Imports.importedModules
+  static dev.declaration.processor.VariantFeature.*
+  static dev.declaration.processor.Declaration.Parameter.Mapping.*
+]
+
+[generate(Declaration.Module module)]
+  [let directory]doc/[/let]
+
+[files.path(directory, module.name, "/readme.md").content _]
+[packageSummary(module)]
+[/]
+
+[for declaration : module.declarations]
+  [if declaration.(Contract c)]
+    [files.path(directory, module.name, "/", c.name, ".md").content _]
+[contractPage(module, c)]
+    [/]
+  [/if]
+[/for]
+
+[for e : datatypesByTopLevel(module.declarations).entrySet,
+  name = e.getKey,
+  datatypes = e.getValue]
+  [files.path(directory, module.name, "/", name, ".md").content _]
+[datatypePage(module, name, datatypes)]
+  [/]
+[/for]
+
+[files.path("readme.md").content _]
+[landingPage(module)]
+[/]
+
+[/generate]
+
+[packageSummary(Declaration.Module module)]
+# [svg("package", 32)] [module.name] [ver]
+
+[--### _Guides_]
+[--Guides removed see history]
+
+### _Endpoints_
+
+| contract | path | summary |
+| -------- | ---- | ------- |
+[for declaration : module.declarations, if declaration.(Contract contract)]
+| [svg("contract", 24)] \[`[contract.name]`\]([linkTo(contract)]) | `[contract.pathPrefix]` | [summary(contract, _)][linkTo(contract)][/] |
+[/for]
+
+### _Data types_
+
+| type | summary |
+| ---- | ------- |
+[for declaration : module.declarations, if declaration.(Datatype datatype)]
+| [typeIcon(datatype, 24)] \[`[datatype.name]`\]([linkTo(datatype)]) | [summary(datatype, _)][linkTo(datatype)][/] |
+[/for]
+
+### Open API
+[for declaration : module.declarations, if declaration.(Contract contract)]
+
+[svg("endpoint", 24)] \[[contract.name].yaml\](./[contract.name].yaml)
+[/for]
+
+[svg("types", 24)] \[[module.name].yaml\](./[module.name].yaml)
+
+[/packageSummary]
+
+[ver()][>-]
+<sup><code title="current version [version]">v[version]</code></sup>
+[-<][/ver]
+
+[contractPage(Datatype.Module module, Contract contract)]
+### [svg("package", 24)] [module.name] [ver] \[⏎\]([linkTo(contract, module)] "Return to `[module.name]` module overview")
+
+# [svg("contract", 42)] [contract.name]
+
+[for line : contract.comment]
+> [line]
+[/for]
+
+| method | path | operation | summary |
+| ------ | ---- | --------- | ------- |
+[for o : contract.operations.values]
+| `[o.method]` | `[o.path]` | \[`[o.name]`\](#[o.name]) | [summary(o, _)]#[o.name][/]
+[/for]
+
+[for o : contract.operations.values]
+
+<hr/>
+
+<a id="[o.name]" aria-hidden="true"></a>
+### [svg("operation",32)] [o.name]
+
+```http
+[o.method] [o.path]
+```
+[for line : o.comment]
+> [line]
+[/for]
+
+[for p : o.parameters, if p.mapping != Body]
+[# == 0 ?][-- if at least one non-body param, we will print heading --]
+
+[svg("method", 24)] _parameters_
+
+[/]
+- `[p.httpName]`[!p.required?]<sub title="optional">?opt</sub>[/] : [referenceType(contract.reference, p.type)] in [>-][case p.mapping]
+    [Path ->]path[/]
+    [Query ->]query[/]
+  [/case][-<]
+  [for line : p.comment]
+  > [line]
+  [/for]
+[/for]
+
+[-- only one body expected --]
+[for p : o.parameters, if p.mapping == Body]
+
+[svg("parameter", 24)] _body_
+- `[p.name]` : [bodyType(contract.reference, p.type)] [contentType(p.type)]
+  [for line : p.comment]
+  > [line]
+  [/for]
+[/for]
+
+[svg("return", 24)] _responses_
+* `[o.returns.status]` : [bodyType(contract.reference, o.returns.type)] [contentType(o.returns.type)]
+  [for line : o.returns.comment]
+  > [line]
+  [/for]
+  [--TODO exceptions]
+[/for]
+
+[/contractPage]
+
+[bodyType(Reference from, Type type)][>-]
+[if type == Type.Extended.Bytes]binary
+[else][referenceType(from, type)]
+[/if]
+[-<][/bodyType]
+
+[contentType(Type type)]
+  [if type == Type.Extended.Bytes]
+(_application/octet-stream_)
+  [else if type.(Type.Primitive)]
+    [if type == Type.Primitive.Void]
+(_no content_)
+    [else]
+(text/plain)
+    [/if]
+  [else]
+(application/json)
+  [/if]
+[/contentType]
+
+[datatypePage(Datatype.Module module, String name, Set<Datatype> datatypes)]
+### [svg("package", 24)] [module.name] \[`⏎`\]([linkTo(datatypes.iterator.next, module)])
+[if datatypes.size > 3]
+| types |
+| ----- |
+[for d : datatypes]
+| [typeIcon(d, 16)]\[`[d.name]`\](#[d.name]) |
+[/for]
+[/if]
+[for d : datatypes]
+
+<a id="[d.name]" aria-hidden="true"></a>
+# [typeIcon(d, 32)] [d.name]
+
+[for line : d.comment]
+> [line]
+[/for]
+
+[describeDatatype(d)]
+
+[/for]
+[/datatypePage]
+
+[landingPage(Declaration.Module module)]
+# Landing page
+removed, see history to revert
+[/landingPage]
+
+[summary(Documented documented, Object link)][>-]
+  [if documented.comment.size > 0]
+[documented.comment.get(0)]
+  [/if]
+[-<] \[…\]([link])[/summary]
+
+[describeDatatype(Datatype d)][>-]
+[if d.(Inline l)]
+_typed alias to a [referenceType(d.reference, l.component.type)]_
+[else if d.(Declaration.Record r)]
+  [if r.components.isEmpty]
+  _record with no fields_
+  [else]
+  _record fields, all required, unless marked as optional (?opt)_
+[for c : r.components]
+- `[c.name]`[!c.required?]<sub title="optional">?opt</sub>[/] : [referenceType(r.reference, c.type)]
+    [for line : c.comment]
+    > [line]
+    [/for]
+[/for]
+  [/if]
+[else if d.(Declaration.Enum e)]
+_enumeration of `string` values_
+
+  [for c : e.constants]
+* `"[c.name]"`
+  [for line : c.comment]
+  > [line]
+  [/for]
+  [/for]
+[else if d.(Declaration.Sealed s)]
+_sealed disjoint union type having variants (cases)_
+
+[typeIcon(s, 16)] `[s.name]`
+  [for c : s.cases]
+<br>◟[typeIcon(c, 16)] \[`[typenameRef(s.reference, c.reference)]`\]([linkTo(s.reference, c.reference)])
+  [/for]
+[else]
+_a type_
+[/if]
+[-<][/]
+
+[referenceType(Reference from, Type type)][>-]
+[if type.(Type.Terminal t)]
+\[`[typenameRef(from, t.terminal)]`\]([linkTo(from, t.terminal)])
+[else if type.(Type.Primitive primitive)]
+  [case primitive]
+  [Void ->]
+`void`
+  [Null ->]
+`null`
+  [Boolean ->]
+`boolean`
+  [String ->]
+`string`
+  [Float ->]
+`number`
+  [Integer ->]
+`int`
+  [Long ->]
+`long`
+  [else]
+`any`
+  [/case]
+[else if type.(Type.Extended ext)]
+  [case ext]
+  [Uuid ->]
+`string:uuid`
+  [Uri ->]
+`string:uri`
+  [LocalDate ->]
+`string:date`
+  [LocalTime ->]
+`string:time`
+  [LocalDateTime, OffsetDateTime, Instant ->]
+`string:date-time`
+  [Bytes ->]
+`string:base64`
+  [MapAny ->]
+{\[`string`\]: `any`}<sub title="object">object</sub>
+  [Any ->]
+`any`
+  [else]
+`string`
+  [/case]
+[else if type.(Type.Container container)]
+  [case container.container]
+[Nullable, Optional, OptionalPrimitive ->]
+[referenceType(from, container.element)]<sub title="or null">|null</sub>
+[List ->]
+\[[referenceType(from, container.element)]\]<sub title="array">array</sub>
+[Set ->]
+{[referenceType(from, container.element)]}<sub title="a set, array with unique elements, no order">set</sub>
+  [/case]
+[else]
+_[type] ([type.getClass])_
+[/if]
+[-<][/]
+
+[assets()]../../_assets[/]
+
+[typeIcon(Datatype d, int size)][>-]
+[if d.(Inline)][svg("entity", size)]
+[else if d.(Declaration.Record)][svg("component", size)]
+[else if d.(Declaration.Enum)][svg("struct", size)]
+[else if d.(Declaration.Sealed)][svg("shallowcomponent", size)]
+[else][svg("type", size)]
+[/if]
+[-<][/]
+
+[svg(String name, int size)]<picture><img valign="middle" src="[assets]/[name].svg" alt="[name]" width="[size]" height="[size]"></picture>[/]
+
+[msvg(String name, int size)]<picture><img valign="middle" src="_assets/[name].svg" alt="[name]" width="[size]" height="[size]"></picture>[/]

@@ -1,4 +1,4 @@
-package io.immutables.declaration.processor;
+package dev.declaration.processor;
 
 import io.immutables.meta.Null;
 import java.util.HashMap;
@@ -92,6 +92,7 @@ public final class PathTemplate {
 
 	public String with(List<Declaration.FixedQuery> queries) {
 		if (queries.isEmpty()) return path;
+
 		var b = new StringBuilder(path).append('?');
 		for (var q : queries) {
 			b.append(q.name());
@@ -102,7 +103,7 @@ public final class PathTemplate {
 		return b.toString();
 	}
 
-	record Parameter(String name, String httpName, Kind kind, @Null String value) {
+	public record Parameter(String name, String httpName, Kind kind, @Null String value) {
 		enum Kind {
 			Path,
 			Query

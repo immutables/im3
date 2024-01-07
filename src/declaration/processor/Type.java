@@ -1,9 +1,6 @@
-package io.immutables.declaration.processor;
+package dev.declaration.processor;
 
-import java.util.ArrayList;
 import java.util.List;
-import java.util.function.Function;
-import javax.lang.model.type.TypeMirror;
 
 public sealed interface Type {
 
@@ -14,7 +11,21 @@ public sealed interface Type {
 		Long,
 		Float,
 		String,
-		Void
+		Void,
+	}
+
+	// TODO move to dynamic registry
+	enum Extended implements Type {
+		Bytes,
+		Uuid,
+		Uri,
+		Instant,
+		LocalDate,
+		LocalTime,
+		LocalDateTime,
+		OffsetDateTime,
+		Any,
+		MapAny
 	}
 
 	record Variable(int variable, String name) implements Type {}
@@ -23,8 +34,12 @@ public sealed interface Type {
 		Declaration.Reference terminal
 	) implements Type {}
 
-	record Container(Kind container, Type element) implements Type {
+	record Applied(
+		Declaration.Reference applies,
+		List<Type> arguments
+	) implements Type {}
 
+	record Container(Kind container, Type element) implements Type {
 		public enum Kind {
 			Nullable,
 			Optional,
@@ -34,16 +49,19 @@ public sealed interface Type {
 			List,
 			Set,
 		}
-	}
 
-	record Applied(
-		Declaration.Reference applies,
-		List<Type> arguments
-	) implements Type {}
+		boolean isSerialArray() {
+			return switch (container) {
+				case List, Set -> true;
+				default -> false;
+			};
+		}
 
-	record Mirror(TypeMirror mirror) implements Type {
-		public String toString() {
-			return mirror.toString();
+		boolean isSerialOptional() {
+			return switch (container) {
+				case Nullable, Optional, OptionalPrimitive -> true;
+				default -> false;
+			};
 		}
 	}
 }

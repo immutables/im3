@@ -1,0 +1,260 @@
+[import
+  java.util.List
+  dev.declaration.processor.Declaration
+  static dev.declaration.processor.Declaration.*
+  static dev.declaration.processor.Declaration.Parameter.Mapping.*
+]
+
+[generate(Declaration.Module module)]
+  [let directory]api/[module.name]/[/let]
+  [for declaration : module.declarations, if declaration.(Contract c)]
+[files.path(directory, c.name, ".yaml").content _]
+[apiContract(c)]
+[/]
+  [/for]
+
+[files.path(directory, module.name, ".yaml").content _]
+[apiTypes(module.name, module.declarations)]
+[/]
+[/]
+
+[apiContract(Contract c)]
+openapi: '3.1.0'
+info:
+  title: [c.reference.module] [c.reference.name]
+  [commentAsDescription(c.comment)]
+  version: '1.0'
+servers:
+[for s : servers]
+- url: [s.url]
+  description: [s.env]
+[/for]
+paths:
+  [for byPath : groupByPath(c.operations.values).entrySet]
+  '[byPath.getKey]': [for operation : byPath.getValue]
+    [operation.method.name.toLowerCase]:
+      operationId: [operation.name]
+      [requestParameters(c, nonBodyParameters(operation))]
+      [for p : operation.parameters, if p.mapping == Parameter.Mapping.Body][-- should be only one]
+      requestBody:
+        [commentAsDescription(p.comment)]
+        required: [p.required]
+        [if p.type == Type.Extended.Bytes]
+        content:
+          'application/octet-stream':
+          schema:
+            type: string
+            format: binary
+        [else if p.type.(Type.Primitive)]
+        content:
+          'text/plain':
+            schema:
+              [schemaType(c.reference, p.type)]
+        [else]
+        content:
+          'application/json':
+            schema:
+              [schemaType(c.reference, p.type)]
+        [/if]
+      [/for]
+      responses:
+        '[operation.returns.status]':
+          [if operation.returns.comment]
+          [commentAsDescription(operation.returns.comment)]
+          [else]
+          description: Response status code [operation.returns.status]
+          [/if]
+          [if operation.returns.type == Type.Primitive.Void]
+          [-- intentionally empty - no content --]
+          [else if operation.returns.type == Type.Extended.Bytes]
+          content:
+            'application/octet-stream':
+              schema:
+                type: string
+                format: binary
+          [else if operation.returns.type.(Type.Primitive)]
+          content:
+            'text/plain':
+              schema:
+                [schemaType(c.reference, operation.returns.type)]
+          [else]
+          content:
+            'application/json':
+              schema:
+                [schemaType(c.reference, operation.returns.type)]
+          [/if][--TODO exceptions]
+  [/for]
+  [/for]
+[/]
+
+[requestParameters(Contract c, List<Parameter> parameters)][if parameters]
+parameters: [for p : parameters]
+- name: [p.httpName]
+  in: [case p.mapping]
+    [Path ->]path[/]
+    [Query ->]query[/]
+  [/case]
+  required: [p.required]
+  [commentAsDescription(p.comment)]
+  schema:
+    [schemaType(c.reference, p.type)]
+[-<][///]
+
+
+[schemaType(Reference from, Type type)]
+[if type.(Type.Terminal t)]
+$ref: '[referenceType(from, t.terminal)]'
+[else if type.(Type.Primitive primitive)]
+  [case primitive]
+  [Null ->]
+type: 'null'
+  [Boolean ->]
+type: boolean
+  [String ->]
+type: string
+  [Float ->]
+type: number
+  [Integer ->]
+type: integer
+format: int32
+  [Long ->]
+type: integer
+format: int64
+  [else]
+type:
+- 'null'
+- boolean
+- integer
+- number
+- string
+- array
+- object
+  [/case]
+[else if type.(Type.Extended ext)]
+  [case ext]
+  [Uuid ->]
+type: string
+format: uuid
+  [Uri ->]
+type: string
+format: uri
+  [LocalDate ->]
+type: string
+format: date
+  [LocalTime ->]
+type: string
+format: time
+  [LocalDateTime, OffsetDateTime, Instant ->]
+type: string
+format: date-time
+  [Bytes ->]
+type: string
+contentEncoding: base64
+  [MapAny ->]
+type: object
+  [Any ->]
+type:
+- 'null'
+- boolean
+- integer
+- number
+- string
+- array
+- object
+  [else]
+type: string
+  [/case]
+[else if type.(Type.Container container)]
+  [case container.container]
+[Nullable, Optional, OptionalPrimitive ->]
+oneOf:
+- type: 'null'
+- [>-][schemaType(from, container.element)]
+[List ->]
+type: array
+items:
+  [schemaType(from, container.element)]
+[Set ->]
+type: array
+uniqueItems: true
+items:
+  [schemaType(from, container.element)]
+  [/case]
+[else]
+# [type] ([type.getClass])
+[/if]
+[-<][/]
+
+[referenceType(Reference from, Reference to)][from.module.equals(to.module)?][to.module].yaml#/components/schemas/[:]../[to.module]/[to.module].yaml#/components/schemas/[/][typeName(to)][/]
+
+[apiTypes(String module, List<Declaration> declarations)]
+openapi: '3.1.0'
+info:
+  title: [module]
+  version: '1.0'
+paths: {}
+components:
+  schemas:
+  [for declaration : declarations, if declaration.(Datatype d)]
+    [jsonSchema(d)]
+  [/for]
+[/]
+
+[jsonSchema(Datatype datatype)]
+[typeName(datatype.reference)]:
+[if datatype.(Inline i)]
+  [inlineSchema(i)]
+[else if datatype.(Declaration.Record r)]
+  [recordSchema(r)]
+[else if datatype.(Declaration.Enum e)]
+  [enumSchema(e)]
+[else if datatype.(Declaration.Sealed s)]
+  [sealedSchema(s)]
+[else]
+  type: object # [datatype.getClass]
+[/if]
+[/]
+
+[recordSchema(Declaration.Record rec)]
+[commentAsDescription(rec.comment)]
+type: object
+properties: [if rec.components][for c : rec.components]
+  [maybeLiteral(c.name)]:
+    [schemaType(rec.reference, c.type)]
+[/for][else]{}[/if]
+[if rec.hasRequired]
+required:[for c : rec.components, if c.required]
+- [maybeLiteral(c.name)]
+[/for]
+[/if]
+[-<][/]
+
+[inlineSchema(Inline inline)]
+[commentAsDescription(inline.comment)]
+[schemaType(inline.reference, inline.component.type)]
+[-<][/inlineSchema]
+
+[commentAsDescription(List<String> comment)]
+[if comment.size == 1]
+description: [comment.get(0)]
+[else if comment.size > 1]
+description: |
+[for c : comment]
+  [c]
+[/for]
+[/if][/]
+
+[enumSchema(Declaration.Enum en)]
+[commentAsDescription(en.comment)]
+oneOf:[for c : en.constants]
+- const: [maybeLiteral(c.name)]
+  [commentAsDescription(c.comment)]
+[/for]
+[-<][/enumSchema]
+
+[sealedSchema(Sealed sealed)]
+[commentAsDescription(sealed.comment)]
+oneOf:[for c : sealed.cases]
+- $ref: '[referenceType(sealed.reference, c.reference)]'
+[/for]
+[-<][/sealedSchema]

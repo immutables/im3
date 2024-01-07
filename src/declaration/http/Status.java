@@ -1,4 +1,4 @@
-package io.immutables.declaration.http;
+package dev.declaration.http;
 
 import java.lang.annotation.*;
 
@@ -6,7 +6,7 @@ import java.lang.annotation.*;
  * Annotate exceptions and custom return values with specific HTTP status codes, i.e.
  * all those 2xx, 3xx, 4xx, 5xx codes.
  * Provided values are used to create responses as well as bind exceptions and response
- * objects when reading. Can also be used to annotate
+ * objects when reading.
  */
 @Documented
 @Retention(RetentionPolicy.RUNTIME)

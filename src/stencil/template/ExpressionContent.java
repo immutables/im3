@@ -159,6 +159,14 @@ class ExpressionContent {
 		return SourceVersion.isKeyword(accessor);
 	}
 
+	// TODO This was introduced ad-hoc, need to rethink the whole solution
+	// in the place where it's used
+	ExpressionContent replace(String string, String replacement) {
+		return new ExpressionContent(
+			expression.toString().replace(string, replacement),
+			literals);
+	}
+
 	private static final Pattern accessorPattern = Pattern.compile(
 		"(\\.\\s*)?(\\b[_a-z][_a-zA-Z0-9]*)(\\s*\\()?", Pattern.MULTILINE);
 

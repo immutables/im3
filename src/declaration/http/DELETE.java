@@ -1,7 +1,10 @@
-package io.immutables.declaration.http;
+package dev.declaration.http;
 
 import java.lang.annotation.*;
 
+/**
+ * Annotates contract operation with HTTP DELETE method.
+ */
 @Documented
 @Inherited
 @Target(ElementType.METHOD)

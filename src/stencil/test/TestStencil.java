@@ -2,9 +2,9 @@ package io.immutables.stencil.test;
 
 import io.immutables.stencil.BufferedCurrent;
 import io.immutables.stencil.Current;
-import io.immutables.stencil.Directory;
-import java.nio.file.Path;
 import org.junit.Test;
+//import io.immutables.stencil.Directory;
+//import java.nio.file.Path;
 
 public class TestStencil {
 
@@ -13,6 +13,7 @@ public class TestStencil {
 	}
 
 	public static void main(String[] args) {
+
 /*		Directory directory = new Directory(Path.of("."));
 
 		Fun fun = Current.use(directory, Fun::new);

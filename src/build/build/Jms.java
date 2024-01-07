@@ -22,8 +22,6 @@ import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-
-
 class MalformedModuleException extends Exception {
 	final String problem;
 	final Path file;
@@ -103,13 +101,7 @@ interface Jms {
 
 			m = Option.matcher(line);
 			if (m.matches()) {
-				var argument = m.group("option")
-					.replace("[project.dir]", projectDir.toString())
-					.replace("[module.dir]", moduleDir.toString())
-					.replace("\\[","[") // good manners to allow escapes if we use them
-					.replace("\\]","]");
-
-				options.add(argument);
+				options.add(m.group("option"));
 				continue;
 			}
 			// no need for now
@@ -117,6 +109,19 @@ interface Jms {
 		}
 
 		if (module.isEmpty()) throw new MalformedModuleException("No module name", file);
+
+		// process options, when module name is available etc
+		for (var it = options.listIterator(); it.hasNext(); ) {
+			var option = it.next();
+			option = option
+				.replace("[project.dir]", projectDir.toString())
+				.replace("[module.dir]", moduleDir.toString())
+				.replace("[module.name]", module)
+				.replace("\\[","[") // good manners to allow escapes if we use them
+				.replace("\\]","]");
+
+			it.set(option);
+		}
 
 		return new ModuleInfo(module, open,
 			List.copyOf(requires), List.copyOf(processors), List.copyOf(options));

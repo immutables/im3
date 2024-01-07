@@ -1,0 +1,406 @@
+[import
+  java.util.List
+  dev.declaration.processor.Type
+  dev.declaration.processor.Documented
+  dev.declaration.processor.Declaration
+  dev.declaration.processor.VariantFeature
+  static dev.declaration.processor.Declaration.*
+  static dev.declaration.processor.Imports.importedModules
+  static dev.declaration.processor.VariantFeature.*
+]
+
+[generate(Declaration.Module module)]
+  [let directory]js/[/let]
+
+[files.path(directory, module.name, ".d.ts").content _]
+// package: [module.name]
+[for imported : importedModules(module.name, module.declarations)]
+import * as [imported] from './[imported]'
+[/for]
+
+[for declaration : module.declarations, if declaration.(Contract contract)]
+
+[generateContract(contract)]
+[/for]
+
+[for e : datatypesByNamespace(module.declarations).entrySet, ns = e.getKey, dts = e.getValue]
+[if ns]
+
+export namespace [ns] {
+[for datatype : dts]
+
+  [generateDatatype(datatype)]
+[/for]
+}
+[else]
+  [for datatype : dts]
+
+[generateDatatype(datatype)]
+  [/for]
+[/if]
+[/for]
+
+[-- a hack to output case variant matching methods for sealed types --]
+[for declaration : module.declarations, if declaration.(Sealed s)]
+
+[sealedVariantMatching(s)]
+[/for]
+[/]
+
+[files.path(directory, module.name, ".mjs").content _]
+'use strict'
+// package: [module.name]
+
+const _tokensByPrefix = {}
+
+[for declaration : module.declarations, if declaration.(Contract contract)]
+
+export function [contract.name](_uriPrefix, _options) {
+  if (typeof _uriPrefix != 'string') throw new TypeError("`uriPrefix` must be a string")
+  switch (typeof _options) {
+  case 'object': case 'undefined': break;
+  default: throw new TypeError("`options` must be an object")
+  }
+  _options ||= {}
+
+  function _authHeader() {
+    const t = (_options.tokenProvider && _options.tokenProvider()) || _tokensByPrefix\[_uriPrefix\]
+    return t ? {'Authorization': 'Bearer ' + t} : {}
+  }
+  return {
+    async authenticate(username, password) {
+      if (typeof username != 'string'
+      || typeof password != 'string') throw new TypeError(
+        "`username` and `password` must be strings")
+      const url = `${_uriPrefix}/oauth2/token`
+      const response = await fetch(url, {
+        method: 'POST',
+        body: new URLSearchParams({username, password}),
+        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+      })
+      const token = await response.text()
+      if (!token) throw new Error(`Authentication error, no token received from ${url}`)
+      _tokensByPrefix\[_uriPrefix\] = token
+      console.log('Authenticated: ' + _uriPrefix)
+      return token
+    },
+[for op : contract.operations.values]
+    async [op.name]([for p : op.parameters][#?], [/][p.name][/]) {
+      let _uri = _uriPrefix + [templatePath(op)][for p : op.parameters, if p.mapping == Declaration.Parameter.Mapping.Query][#?]
+        + '?' + new URLSearchParams({
+          [for ps : op.parameters, if ps.mapping == Declaration.Parameter.Mapping.Query]
+          '[p.httpName]': [p.name],
+          [/for]
+        })
+      [//]
+      const _response = await fetch(_uri, {
+        method: '[op.method]',
+        credentials: 'include',
+        headers: {
+        [case sends(op)]
+          [Text ->]'Content-Type': 'text/plain',
+          [Blob ->]'Content-Type': 'application/octet-stream',
+          [Json ->]'Content-Type': 'application/json',
+          [Form ->]'Content-Type': 'application/x-www-form-urlencoded',
+        [/case]
+          ..._authHeader()
+        },
+        [case sends(op)]
+        [Text ->]body: String([for p : op.parameters, if p.mapping == Declaration.Parameter.Mapping.Body][p.name][/]),
+        [Blob ->]body: [for p : op.parameters, if p.mapping == Declaration.Parameter.Mapping.Body][p.name][/],
+        [Json ->]body: JSON.stringify([for p : op.parameters, if p.mapping == Declaration.Parameter.Mapping.Body][p.name][/]),
+        [Form ->]body: new URLSearchParams({[for p : op.parameters][#?], [/]'[p.httpName]': [p.name][/]}),
+        [/case]
+      })
+      [case returns(op)]
+      [Text ->]return _response.text()
+      [Json ->]return _response.json()
+      [Blob ->]return _response.blob()
+      [else]return _response
+      [/case]
+    },
+[/for]
+  }
+}
+[/for]
+
+[for d : module.declarations, if d.(Datatype datatype),
+  if nsSegmentsOf(datatype.name).size == 1]
+
+export function [datatype.name](d) {if(this)throw new TypeError('not a constructor');return d}
+[/for]
+[for d : module.declarations, if d.(Datatype datatype),
+  if nsSegmentsOf(datatype.name).size == 2]
+
+[datatype.name] = function(d) {if(this)throw new TypeError('not a constructor');return d}
+[/for]
+[for d : module.declarations, if d.(Datatype datatype),
+  if nsSegmentsOf(datatype.name).size == 3]
+
+[datatype.name] = function(d) {if(this)throw new TypeError('not a constructor');return d}
+[/for]
+[for d : module.declarations, if d.(Datatype datatype),
+  if nsSegmentsOf(datatype.name).size == 4]
+
+[datatype.name] = function(d) {if(this)throw new TypeError('not a constructor');return d}
+[/for]
+[for d : module.declarations, if d.(Datatype datatype),
+  if nsSegmentsOf(datatype.name).size == 5]
+
+[datatype.name] = function(d) {if(this)throw new TypeError('not a constructor');return d}
+[/for]
+[for d : module.declarations, if d.(Datatype datatype)]
+
+[forDatatype(datatype)]
+[/for]
+[/][-- close file here]
+
+[/generate]
+
+
+[sealedVariantMatching(Declaration.Sealed s)]
+[docComment(s)]
+export namespace [s.name] {
+  /** Returns logical type name of a variant */
+  export function kindOf(variant: [s.name]): [for c : s.cases]
+    [#?]| [:]  [/]'[c.name]'
+  [/for]
+[for c : s.cases]
+  /** Returns an instance if it matches the [simplenameOf(c.name)] case */
+  export function as[simplenameOf(c.name)](variant: [s.name]): undefined|[symbolReference(s.reference, c.reference)]
+[/for]
+}
+[/]
+
+
+[forDatatype(Datatype datatype)]
+[if datatype.(Declaration.Sealed s)]
+[jsSealed(s)]
+[else if datatype.(Declaration.Enum e)]
+[jsEnum(e)]
+[/if]
+[/forDatatype]
+
+
+[jsEnum(Declaration.Enum e)]
+  [for c : e.constants]
+[e.name].[c.name] = '[c.name]'
+  [/for]
+[/jsEnum]
+
+
+[jsSealed(Declaration.Sealed s)]
+[for uniques = uniquesFrom(s)]
+[s.name].kindOf = function(v) {
+  [for c : s.cases]
+  if ([s.name].as[simplenameOf(c.name)](v) !== undefined) return '[c.name]'
+  [/for]
+}
+  [for c : s.cases]
+[s.name].as[simplenameOf(c.name)] = function(v) {
+  return (v !== null && v !== undefined
+  [for u : uniques.get(c)]
+    [if u.(Shape shape)]
+      [case shape]
+        [String ->]
+      && typeof v === 'string'
+        [Boolean ->]
+      && typeof v === 'boolean'
+        [Number ->]
+      && typeof v === 'number'
+        [else]
+      && typeof v === 'object'
+      [/case]
+    [else if u.(HasField field)]
+      && h.hasOwnProperty('[field.name]')
+    [/if]
+  [/for]) && v
+}
+  [/for]
+[/for]
+[/jsSealed]
+
+
+[generateContract(Contract contract)]
+/**
+ * `[contract.pathPrefix]`
+[if contract.comment]
+ *
+[/if]
+ * [contract.comment...]
+ * [/]
+ */
+export interface [contract.name] {
+[for operation : contract.operations.values, from = contract.reference]
+
+  [docCommentOperation(operation)]
+  [operation.name]([for p : operation.parameters][#?], [/][p.name]: [typeUse(from, p.type)][/]): Promise<[typeUse(from, operation.returns.type)]>
+[/for]
+
+  /**
+   * Performs service-to-service authentication via password grant.
+   * Received token will be shared by the server URI prefix within `[contract.module]` domain.
+   * Token will not be automatically refreshed, it's up to the caller'
+   */
+  authenticate(username: string, password: string): Promise<string>
+}
+
+/**
+ * `[contract.pathPrefix]`
+[if contract.comment]
+ *
+[/if]
+ * [contract.comment...]
+ * [/]
+ * @param uriPrefix URI prefix before `[contract.pathPrefix]`
+ * @param options non mandatory options to configure a client
+ */
+export declare function [contract.name](uriPrefix: string, options?: {
+  tokenProvider?: () => string
+}): [contract.name]
+[/generateContract]
+
+
+[docCommentOperation(Operation operation)]
+/**
+ * `[operation.method] [operation.path]`
+ *
+[for c : operation.comment]
+ * [c]
+[/for]
+[for p : operation.parameters, if p.comment]
+ * @param [p.name] [p.comment...]
+ *   [/][-- continuation indent ]
+[/for]
+[if operation.returns.comment]
+ * @returns [operation.returns.comment...]
+ *   [/][-- continuation indent ]
+[/if]
+ */
+[/docCommentOperation]
+
+
+[docComment(Documented d)]
+[if d.comment.size == 1]
+/** [d.comment.get(0)] */
+[else if d.comment.size > 1]
+/**
+ * [d.comment...]
+ * [/]
+ */
+[/if][/docComment]
+
+
+[generateDatatype(Datatype datatype)]
+  [if datatype.(Inline i)]
+[inlineType(i)]
+  [else if datatype.(Declaration.Record r)]
+[recordInterface(r)]
+  [else if datatype.(Declaration.Enum e)]
+[enumType(e)]
+  [else if datatype.(Declaration.Sealed s)]
+[sealedType(s)]
+  [/if]
+[/generateDatatype]
+
+
+[recordInterface(Declaration.Record r)]
+[docComment(r)]
+export interface [simplenameOf(r.name)] {
+  [for c : r.components]
+  [docComment(c)]
+  readonly [c.name]: [typeUse(r.reference, c.type)]
+  [/for]
+}
+[/]
+
+
+[enumType(Declaration.Enum e)]
+[for sname = simplenameOf(e.name)]
+[docComment(e)]
+export[namespaceOf(e.name)?][:] declare[/] const [sname]: {[--/** Validates and converts string to a sname  */(value: string): sname]
+  [for c : e.constants]
+  [docComment(c)]
+  readonly [c.name]: [sname] & '[c.name]'[-- just a constant would be enough]
+  [/for]
+}
+
+[docComment(e)]
+export type [simplenameOf(e.name)] = [for c : e.constants]
+  [#?]| [:]  [/]'[c.name]'
+[/for]
+[/for]
+[/enumType]
+
+
+[inlineType(Declaration.Inline inline)]
+[docComment(inline)]
+export type [simplenameOf(inline.name)] = [typeUse(inline.reference, inline.component.type)] & [typesafe]
+[/inlineType]
+
+
+[sealedType(Declaration.Sealed s)]
+[docComment(s)]
+export type [simplenameOf(s.name)] = [for c : s.cases]
+  [#?]| [:]  [/][symbolReference(s.reference, c.reference)]
+[/for]
+[/sealedType]
+
+
+[typesafe()]{readonly __typesafe?: unique symbol}[/typesafe]
+
+
+[symbolReference(Reference from, Reference to)][from.module.equals(to.module)?][:][to.module].[/][to.name][/symbolReference]
+
+
+[typeUse(Reference from, Type type)][>-]
+[if type.(Type.Terminal t)]
+  [symbolReference(from, t.terminal)]
+[else if type.(Type.Applied a)]
+  [symbolReference(from, a.applies)]<[for arg :
+    a.arguments][#?], [/][typeUse(from, arg)][/for]>
+[else if type.(Type.Primitive primitive)]
+  [case primitive]
+  [Void ->]
+void
+  [Null ->]
+null
+  [Boolean ->]
+boolean
+  [String ->]
+string
+  [Float, Integer, Long ->]
+number
+  [else]
+any
+  [/case]
+[else if type.(Type.Extended ext)]
+  [case ext]
+  [Uuid ->]
+string
+  [Uri ->]
+string
+  [LocalDate ->]
+string
+  [LocalTime ->]
+string
+  [LocalDateTime, OffsetDateTime, Instant ->]
+string
+  [Bytes ->]
+Blob
+  [else]
+string
+  [/case]
+[else if type.(Type.Container container)]
+  [case container.container]
+[Nullable, Optional, OptionalPrimitive ->]
+[typeUse(from, container.element)]| null
+[List, Set ->]
+ReadonlyArray<[typeUse(from, container.element)]>
+[else]never
+[/case]
+[else]
+never
+[/if]
+[-<][/typeUse]
+

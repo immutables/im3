@@ -1,5 +1,9 @@
-module io.immutables.declaration {
-	requires static io.immutables.meta;
-	exports io.immutables.declaration;
-	exports io.immutables.declaration.http;
+module dev.declaration {
+	requires static javax.annotation.jsr305;
+	requires io.immutables.meta;
+	// requires io.immutables.codec;
+	//requires io.immutables.codec.jackson;
+
+	exports dev.declaration;
+	exports dev.declaration.http;
 }

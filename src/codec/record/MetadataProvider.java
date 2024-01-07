@@ -5,9 +5,6 @@ import java.lang.reflect.Member;
 import java.lang.reflect.RecordComponent;
 
 public interface MetadataProvider {
-	// bigger priority value wins
-	int priority();
-
 	boolean isInlineRecord(Class<?> record);
 
 	boolean isInlineComponent(RecordComponent component);

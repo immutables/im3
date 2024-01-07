@@ -1,4 +1,4 @@
-package io.immutables.declaration.processor;
+package dev.declaration.processor;
 
 record Problem(Severity severity, String message) {
 	enum Severity {

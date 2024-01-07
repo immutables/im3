@@ -1,4 +1,4 @@
-package io.immutables.declaration.http;
+package dev.declaration.http;
 
 import io.immutables.meta.Null;
 import io.immutables.meta.SkippableReturn;
@@ -24,6 +24,10 @@ public abstract class ReturnException extends RuntimeException {
 		setStatusCode(code);
 		setStatusText(text);
 		return this;
+	}
+
+	public boolean hasBody() {
+		return body != this;
 	}
 
 	public Object getBody() {
@@ -57,7 +61,7 @@ public abstract class ReturnException extends RuntimeException {
 		return statusText;
 	}
 
-	public String getMessage() {
+	@Override public String getMessage() {
 		return getStatusCode() + " " + getStatusText();
 	}
 }

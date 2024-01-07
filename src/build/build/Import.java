@@ -13,39 +13,39 @@ public interface Import {
 	static void modules() {
 		//'org.openjdk.jmh:jmh-core:1.37' - Supports Java 21?
 		module("org.immutables.value", a -> a
-				.classes("org.immutables:value", Immutables)
-				.noSources()
+			.classes("org.immutables:value", Immutables)
+			.noSources()
 		);
 		module("org.immutables.value.annotations", a -> a
-				.classes("org.immutables:value-annotations", Immutables)
+			.classes("org.immutables:value-annotations", Immutables)
 		);
 		module("javax.annotation.jsr305", a -> a
-				.classes("com.google.code.findbugs:jsr305", Jsr305)
-				.sources("com.google.code.findbugs:jsr305", Jsr305)
-				.repackage()
+			.classes("com.google.code.findbugs:jsr305", Jsr305)
+			.sources("com.google.code.findbugs:jsr305", Jsr305)
+			.repackage()
 		);
 		module("org.junit.junit4", a -> a
-				.classes("junit:junit", "4.12")
-				.classes("org.hamcrest:hamcrest-core", "1.3")
-				.repackage()
+			.classes("junit:junit", "4.12")
+			.classes("org.hamcrest:hamcrest-core", "1.3")
+			.repackage()
 		);
 		module("com.fasterxml.jackson.core", a -> a
-				.classes("com.fasterxml.jackson.core:jackson-core", Jackson)
+			.classes("com.fasterxml.jackson.core:jackson-core", Jackson)
 		);
 		module("com.fasterxml.jackson.databind", a -> a
-				.classes("com.fasterxml.jackson.core:jackson-databind", Jackson)
+			.classes("com.fasterxml.jackson.core:jackson-databind", Jackson)
 		);
 		module("com.fasterxml.jackson.annotation", a -> a
-				.classes("com.fasterxml.jackson.core:jackson-annotations", Jackson)
+			.classes("com.fasterxml.jackson.core:jackson-annotations", Jackson)
 		);
 		module("com.google.common", a -> a
-				.classes("com.google.guava:guava", Guava)
+			.classes("com.google.guava:guava", Guava)
 		);
 		module("org.postgresql.jdbc", a -> a
-				.classes("org.postgresql:postgresql", Postgres)
+			.classes("org.postgresql:postgresql", Postgres)
 		);
 		module("spring.web", a -> a
-				.classes("org.springframework:spring-web", Spring)
+			.classes("org.springframework:spring-web", Spring)
 		);
 	}
 }

@@ -1,16 +1,14 @@
-package io.immutables.declaration.processor;
+package dev.declaration.processor;
 
 import io.immutables.meta.Inline;
-import io.immutables.meta.InsertOrder;
 import io.immutables.meta.Null;
+import java.net.URI;
+import java.time.*;
 import java.util.*;
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.AnnotatedConstruct;
 import javax.lang.model.element.*;
-import javax.lang.model.type.DeclaredType;
-import javax.lang.model.type.TypeKind;
-import javax.lang.model.type.TypeMirror;
-import javax.lang.model.type.TypeVariable;
+import javax.lang.model.type.*;
 import javax.lang.model.util.Elements;
 import javax.lang.model.util.Types;
 import javax.tools.Diagnostic;
@@ -35,6 +33,21 @@ class DatatypeIntrospector {
 			new Type.Container(Type.Container.Kind.OptionalPrimitive, Type.Primitive.Long));
 		predeclaredTypes.put(OptionalDouble.class.getName(),
 			new Type.Container(Type.Container.Kind.OptionalPrimitive, Type.Primitive.Float));
+
+		predeclaredTypes.put(UUID.class.getName(), Type.Extended.Uuid);
+		predeclaredTypes.put(URI.class.getName(), Type.Extended.Uri);
+		predeclaredTypes.put(Instant.class.getName(), Type.Extended.Instant);
+		predeclaredTypes.put(LocalDate.class.getName(), Type.Extended.LocalDate);
+		predeclaredTypes.put(LocalTime.class.getName(), Type.Extended.LocalTime);
+		predeclaredTypes.put(LocalDateTime.class.getName(), Type.Extended.LocalDateTime);
+		predeclaredTypes.put(OffsetDateTime.class.getName(), Type.Extended.OffsetDateTime);
+		// Temporarily!!
+		predeclaredTypes.put("platform.JsonAny", Type.Extended.Any);
+		predeclaredTypes.put("platform.JsonAny.Struct", Type.Extended.MapAny);
+		// Extended.Bytes are handled in a different way, see switches on types
+
+		// VOID? ANY?
+		predeclaredTypes.put(Object.class.getName(), Type.Primitive.Void);
 	}
 
 	private final Map<String, Type.Container.Kind> containerTypes = new HashMap<>();
@@ -77,8 +90,15 @@ class DatatypeIntrospector {
 
 	Optional<Declaration> introspect(TypeElement element) {
 		String qualifiedName = element.getQualifiedName().toString();
-		return Optional.ofNullable(
-			declarations.computeIfAbsent(qualifiedName, k -> declarationFrom(element)));
+		// we don't use computeIfAbsent here because of nested logic which does
+		// introspection too, and we can get ConcurrentModificationException
+		@Null var declaration = declarations.get(qualifiedName);
+		// can be null for unsupported type kind, so we check for entry
+		if (!declarations.containsKey(qualifiedName)) {
+			declaration = declarationFrom(element);
+			declarations.put(qualifiedName, declaration);
+		}
+		return Optional.ofNullable(declaration);
 	}
 
 	private @Null Declaration declarationFrom(TypeElement element) {
@@ -99,7 +119,8 @@ class DatatypeIntrospector {
 		var cases = element.getPermittedSubclasses().stream()
 			.map(t -> (TypeElement) types.asElement(t))
 			.map(this::introspect)
-			.<Declaration>mapMulti(Optional::ifPresent)
+			.mapMulti(Optional::ifPresent)
+			.map(Declaration.Datatype.class::cast)
 			.toList();
 
 		matchTypeVariables(element, reference, cases, typeVariables);
@@ -109,14 +130,16 @@ class DatatypeIntrospector {
 			reference,
 			List.copyOf(typeVariables.values()),
 			cases,
-			commentOf(element));
+			commentOf(element).lines());
 	}
 
 	private void matchTypeVariables(
 		TypeElement element,
 		Declaration.Reference sealed,
-		List<Declaration> cases,
+		List<Declaration.Datatype> cases,
 		Map<String, Type.Variable> variables) {
+
+		if (variables.isEmpty()) return; // no variables - nothing to match
 
 		// TODO more precise validation, now it's just by name!!
 		var sealedParams = variables.values()
@@ -125,11 +148,15 @@ class DatatypeIntrospector {
 			.toList();
 
 		for (var c : cases) {
-			// only Parameterizable declarations are expected in cases
-			var caseParams = ((Declaration.Parameterizable) c).parameters()
-				.stream()
-				.map(Type.Variable::name)
-				.toList();
+			List<String> caseParams;
+			if (c instanceof Declaration.Parameterizable parameterizable) {
+				caseParams = parameterizable.parameters()
+					.stream()
+					.map(Type.Variable::name)
+					.toList();
+			} else {
+				caseParams = List.of();
+			}
 
 			if (!caseParams.equals(sealedParams)) {
 				error("Case type parameters of %s %s mismatch with sealed interface %s %s"
@@ -154,27 +181,36 @@ class DatatypeIntrospector {
 		var typeVariables = mapTypeVariables(element);
 		var vars = List.copyOf(typeVariables.values());
 
+		var recordComment = commentOf(element);
+
 		var components = new ArrayList<Declaration.Component>();
 		for (RecordComponentElement c : element.getRecordComponents()) {
-			components.add(componentFrom(c, typeVariables));
+			components.add(componentFrom(c, typeVariables, recordComment));
 		}
 
 		Declaration declaration;
 
 		if (isInline) {
 			if (components.size() == 1) {
+				var inlinedComponentComment = commentOf(element.getRecordComponents().get(0));
+				var comment = DocComment.concat(
+					recordComment.lines(),
+					inlinedComponentComment.lines());
+
 				declaration = new Declaration.Inline(
 					Declaration.Inline.Tag.Is,
-					reference, vars, components.get(0), commentOf(element));
+					reference, vars, components.get(0), comment);
+
 			} else {
+				// TODO here we don't consider any lines on components
 				declaration = new Declaration.Product(
 					Declaration.Product.Tag.Is,
-					reference, vars, List.copyOf(components), commentOf(element));
+					reference, vars, List.copyOf(components), recordComment.lines());
 			}
 		} else {
 			declaration = new Declaration.Record(
 				Declaration.Record.Tag.Is,
-				reference, vars, List.copyOf(components), commentOf(element));
+				reference, vars, List.copyOf(components), recordComment.lines());
 		}
 
 		return declaration;
@@ -182,9 +218,10 @@ class DatatypeIntrospector {
 
 	/**
 	 * In general, a string key is not precise in a complex scenarios,
-	 * but in case of data records, it should give good result, i.e. good match
+	 * but in case of data records, it should give good result, i.e. good match.
+	 * Returned map maintains insertion ordering
 	 */
-	private @InsertOrder Map<String, Type.Variable> mapTypeVariables(
+	private Map<String, Type.Variable> mapTypeVariables(
 		TypeElement element) {
 
 		if (element.getTypeParameters().isEmpty()) return Map.of();
@@ -199,17 +236,23 @@ class DatatypeIntrospector {
 	}
 
 	private Declaration enumFrom(TypeElement element) {
-		var constants = element.getEnclosedElements().stream()
-			.filter(e -> e.getKind() == ElementKind.ENUM_CONSTANT)
-			.map(e -> e.getSimpleName().toString())
-			.map(Declaration.Enum.Constant::new)
-			.toList();
+		var constants = new ArrayList<Declaration.Enum.Constant>();
+
+		for (var e : element.getEnclosedElements()) {
+			if (e.getKind() == ElementKind.ENUM_CONSTANT) {
+				var name = e.getSimpleName().toString();
+				var comment = commentOf(e).lines();
+
+				constants.add(new Declaration.Enum.Constant(
+					name, comment));
+			}
+		}
 
 		return new Declaration.Enum(
 			Declaration.Enum.Tag.Is,
 			reference(element),
 			constants,
-			commentOf(element));
+			commentOf(element).lines());
 	}
 
 	private Type.Variable allocateVariable(String name) {
@@ -218,12 +261,13 @@ class DatatypeIntrospector {
 
 	private Declaration.Component componentFrom(
 		RecordComponentElement component,
-		Map<String, Type.Variable> typeVariables) {
+		Map<String, Type.Variable> typeVariables,
+		DocComment recordComment) {
 
 		//component.getAccessor().getReturnType();
 		var typeMirror = component.asType();
 
-		var decoder = new TypeDecoder(
+		var decoder = new TypeRecognizer(
 			component,
 			typeMirror,
 			typeVariables);
@@ -231,16 +275,58 @@ class DatatypeIntrospector {
 		var name = component.getSimpleName().toString();
 		Type type = decoder.decode(knownAnnotationsOf(component));
 
+		var comment = extractComponentComment(component, recordComment, name);
+
 		return new Declaration.Component(
-			name, type, typeMirror.toString(), commentOf(component));
+			name, type, typeMirror.toString(), comment);
 	}
 
-	class TypeDecoder {
+	private List<String> extractComponentComment(
+		RecordComponentElement component, DocComment recordComment, String name) {
+		// Here we can consider that component might have its own comment,
+		// but it might be just part of @param taglet on the record comment
+		// Currently I don't understand how it's specified, so we try both
+		DocComment componentComment = commentOf(component);
+		List<String> comment = componentComment.lines();
+		if (comment.isEmpty()) {
+			comment = recordComment.parameters().getOrDefault(name, List.of());
+		}
+		return comment;
+	}
+
+	Type interpretType(TypeElement enclosing, Element element) {
+ 		var typeVariables = mapTypeVariables(enclosing);
+		var recognizer = new TypeRecognizer(
+			element,
+			element.asType(),
+			typeVariables);
+		return recognizer.decode(knownAnnotationsOf(element));
+	}
+
+	Type interpretType(TypeElement enclosing, TypeMirror type, Element element) {
+		var typeVariables = mapTypeVariables(enclosing);
+		var recognizer = new TypeRecognizer(
+			element,
+			type,
+			typeVariables);
+		return recognizer.decode(knownAnnotationsOf(element));
+	}
+
+	Type interpretType(TypeElement enclosing, TypeMirror type, Element element, KnownAnnotations annotations) {
+		var typeVariables = mapTypeVariables(enclosing);
+		var recognizer = new TypeRecognizer(
+			element,
+			type,
+			typeVariables);
+		return recognizer.decode(annotations);
+	}
+
+	class TypeRecognizer {
 		final Element element;
 		final TypeMirror start;
 		final Map<String, Type.Variable> variables;
 
-		TypeDecoder(Element element, TypeMirror start, Map<String, Type.Variable> variables) {
+		TypeRecognizer(Element element, TypeMirror start, Map<String, Type.Variable> variables) {
 			this.element = element;
 			this.start = start;
 			this.variables = variables;
@@ -289,7 +375,13 @@ class DatatypeIntrospector {
 					yield v != null ? v : unsupported(type, element, "Unmapped type variable");
 				}
 
-				case ARRAY -> unsupported(type, element, "Use 'List' or 'Set' instead");
+				case ARRAY -> {
+					if (((ArrayType) type).getComponentType().getKind() == TypeKind.BYTE) {
+						yield Type.Extended.Bytes;
+					}
+					yield unsupported(type, element, "Use 'List' or 'Set' instead");
+				}
+
 				case WILDCARD -> unsupported(type, element, "Replace wildcard with just an element");
 
 				case OTHER, NONE, ERROR, PACKAGE, EXECUTABLE, UNION, INTERSECTION, MODULE ->
@@ -350,6 +442,8 @@ class DatatypeIntrospector {
 			// datatype (recursively), we just remember it here,
 			// and then, at some point, presumably, when we have
 			// collected as much information as needed
+			// FIXME toValidate is not read yet, this might not be an
+			//  issue because dependency is validated by java compilation
 			toValidate.add(new ReferenceInContext(reference, element));
 		}
 
@@ -402,8 +496,8 @@ class DatatypeIntrospector {
 		return annotationsCache.computeIfAbsent(type, KnownAnnotations::from);
 	}
 
-	String commentOf(Element element) {
+	DocComment commentOf(Element element) {
 		@Null String c = elements.getDocComment(element);
-		return c != null ? c : "";
+		return c != null ? DocComment.extract(c) : DocComment.Empty;
 	}
 }

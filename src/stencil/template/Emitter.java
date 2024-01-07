@@ -259,11 +259,13 @@ class Emitter extends Stencil.Raw {
 
 	private void renderTranscludeBlock(LocalScope scope, BlockExpression b) {
 		ifln();
-		put("{final var __block__=__.bl(()->{").ln();
-		render(scope.extend(b.expression().toString()), b.content());
+		var blockVar = newIdentifier("block");
+		put("{final var ", blockVar ,"=__.bl(()->{").ln();
+		render(scope, b.content());
 		ifln();
-		LocalScope scope1 = scope.extendLocal("__block__");
-		put("});__.$(()->", b.expression().expand(scope1), ");}").ln();
+		LocalScope expressionScope = scope.extendLocal(blockVar);
+		put("});__.$(()->", b.expression()
+			.replace("__block__", blockVar).expand(expressionScope), ");}").ln();
 	}
 
 	private String newIdentifier(String base) {

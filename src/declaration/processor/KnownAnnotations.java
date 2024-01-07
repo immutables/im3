@@ -1,7 +1,7 @@
-package io.immutables.declaration.processor;
+package dev.declaration.processor;
 
-import io.immutables.declaration.Exclude;
-import io.immutables.declaration.http.*;
+import dev.declaration.Exclude;
+import dev.declaration.http.*;
 import io.immutables.meta.Inline;
 import io.immutables.meta.Null;
 import java.lang.annotation.Annotation;

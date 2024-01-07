@@ -59,7 +59,7 @@ public class Sources {
 
 		var dir = file.getParent();
 
-		var projectDir = Path.of(".").toAbsolutePath();
+		var projectDir = Path.of(".").toAbsolutePath().normalize();
 		var moduleDir = dir.toAbsolutePath();
 		var moduleInfo = Jms.parseModuleInfo(file, moduleDir, projectDir);
 

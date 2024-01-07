@@ -1,8 +1,7 @@
-package io.immutables.declaration.processor;
+package dev.declaration.processor;
 
-import io.immutables.declaration.http.*;
 import io.immutables.meta.Null;
-
+import dev.declaration.http.*;
 import java.util.*;
 import java.util.function.Consumer;
 import javax.annotation.processing.ProcessingEnvironment;
@@ -24,9 +23,9 @@ class ContractIntrospector {
 	private final Map<AnnotatedConstruct, KnownAnnotations> annotationsCache;
 
 	ContractIntrospector(
-			ProcessingEnvironment processing,
-			DatatypeIntrospector datatypes,
-			Map<AnnotatedConstruct, KnownAnnotations> annotationsCache) {
+		ProcessingEnvironment processing,
+		DatatypeIntrospector datatypes,
+		Map<AnnotatedConstruct, KnownAnnotations> annotationsCache) {
 
 		this.processing = processing;
 		this.elements = processing.getElementUtils();
@@ -57,11 +56,11 @@ class ContractIntrospector {
 		var pathPrefix = path != null ? path.value() : "";
 
 		var contract = new Declaration.Contract(
-				Declaration.Contract.Tag.Is,
-				datatypes.reference(type),
-				pathPrefix,
-				extractOperations(type, pathPrefix),
-				commentOf(type)
+			Declaration.Contract.Tag.Is,
+			datatypes.reference(type),
+			pathPrefix,
+			extractOperations(type, pathPrefix),
+			datatypes.commentOf(type).lines()
 		);
 
 		var qualifiedName = type.getQualifiedName().toString();
@@ -70,7 +69,7 @@ class ContractIntrospector {
 		// but let it be for now, also we reach DatatypesIntrospector declaration cache.
 		// This asymmetry definitely require refactoring.
 		return Optional.of((Declaration.Contract)
-				datatypes.declarations.computeIfAbsent(qualifiedName, q -> contract));
+			datatypes.declarations.computeIfAbsent(qualifiedName, q -> contract));
 	}
 
 	private KnownAnnotations knownAnnotationsOf(AnnotatedConstruct type) {
@@ -82,10 +81,10 @@ class ContractIntrospector {
 	}
 
 	private Map<String, Declaration.Operation> extractOperations(
-			TypeElement type, String pathPrefix) {
+		TypeElement type, String pathPrefix) {
 
 		List<ExecutableElement> allMethods = List.copyOf( // make it eagerly computed
-				ElementFilter.methodsIn(elements.getAllMembers(type)));
+			ElementFilter.methodsIn(elements.getAllMembers(type)));
 
 		var declaringType = (DeclaredType) type.asType();
 		var operations = new LinkedHashMap<String, Declaration.Operation>(allMethods.size());
@@ -94,7 +93,7 @@ class ContractIntrospector {
 			var name = method.getSimpleName().toString();
 
 			if (((TypeElement) method.getEnclosingElement()).getQualifiedName()
-					.contentEquals(Object.class.getName())) continue;
+				.contentEquals(Object.class.getName())) continue;
 
 			var mirror = (ExecutableType) types.asMemberOf(declaringType, method);
 
@@ -124,25 +123,27 @@ class ContractIntrospector {
 			var annotations = knownAnnotationsOf(method);
 			var binding = extractHttpBinding(annotations, method, pathPrefix);
 
-			var returns = extractReturn(method, mirror);
-			var thrown = extractThrown(mirror);
+			var operationComment = datatypes.commentOf(method);
+
+			var returns = extractReturn(type, method, mirror, operationComment);
+			var thrown = extractThrown(type, method, mirror, operationComment);
 
 			var collectedParameters = new ArrayList<Declaration.Parameter>();
 			var collectedFixedQuery = new ArrayList<Declaration.FixedQuery>();
 
 			collectParameters(
-					method, mirror, binding,
-					collectedParameters::add, collectedFixedQuery::add);
+				method, mirror, binding, operationComment,
+				collectedParameters::add, collectedFixedQuery::add);
 
 			operations.put(name, new Declaration.Operation(
-					name,
-					binding.template,
-					binding.method,
-					returns,
-					thrown,
-					List.copyOf(collectedParameters),
-					List.copyOf(collectedFixedQuery),
-					commentOf(method)
+				name,
+				binding.template,
+				binding.method,
+				returns,
+				thrown,
+				List.copyOf(collectedParameters),
+				List.copyOf(collectedFixedQuery),
+				operationComment.lines()
 			));
 		}
 
@@ -150,9 +151,10 @@ class ContractIntrospector {
 	}
 
 	private void collectParameters(
-			ExecutableElement method, ExecutableType mirror, HttpBinding binding,
-			Consumer<Declaration.Parameter> collectParameters,
-			Consumer<Declaration.FixedQuery> collectFixedQuery) {
+		ExecutableElement method, ExecutableType mirror, HttpBinding binding,
+		DocComment operationComment,
+		Consumer<Declaration.Parameter> collectParameters,
+		Consumer<Declaration.FixedQuery> collectFixedQuery) {
 
 		// here we don't check if, for example, request entity is compatible
 		// with certain HTTP method.
@@ -190,43 +192,93 @@ class ContractIntrospector {
 					mapping = Declaration.Parameter.Mapping.Body;
 				} else {
 					error("Unmapped parameter '%s', cannot have more than one request body"
-							.formatted(name), p);
+						.formatted(name), p);
 					mapping = Declaration.Parameter.Mapping.Unmapped;
 				}
 				httpName = "";
 			}
 
-			var type = new Type.Mirror(parameterTypes.get(index));
+			var javaType = parameterTypes.get(index);
+			var enclosingType = (TypeElement) method.getEnclosingElement();
+			var decodedType = datatypes.interpretType(enclosingType, p);
+			boolean required = isRequiredParameter(decodedType);
+
 			collectParameters.accept(new Declaration.Parameter(
-					name, httpName, index, type, mapping,
-					commentOf(p)));
+				name, httpName, index, decodedType, javaType, mapping, required,
+				parameterComments(operationComment, p, name)));
 		}
 
 		for (var u : uriParameters.keySet()) {
 			if (!mappedParameterNames.contains(u)) {
 				var leftover = uriParameters.get(u);
 				collectFixedQuery.accept(new Declaration.FixedQuery(
-						leftover.httpName(),
-						leftover.value()));
+					leftover.httpName(),
+					leftover.value()));
 			}
 		}
 	}
 
-	private List<Declaration.Thrown> extractThrown(ExecutableType mirror) {
+	private List<String> parameterComments(
+		DocComment operationComment, Element parameter, String name) {
+		DocComment componentComment = datatypes.commentOf(parameter);
+		List<String> comment = componentComment.lines();
+		if (comment.isEmpty()) {
+			comment = operationComment.parameters().getOrDefault(name, List.of());
+		}
+		return comment;
+	}
+
+	private boolean isRequiredParameter(Type type) {
+		// currently all containers can be treated as non-required
+		// this obviously most applicable to Nullable and Optional,
+		// but also empty List/Set
+		// This is to be refined in future
+		return !(type instanceof Type.Container);
+	}
+
+	private List<Declaration.Thrown> extractThrown(
+		TypeElement type, ExecutableElement method, ExecutableType mirror,
+		DocComment operationComment) {
+
 		var thrown = new ArrayList<Declaration.Thrown>();
 
-		for (var t : mirror.getThrownTypes()) {
-			var type = new Type.Mirror(t);
-			int status = extractStatusCode(t, 500); // default for exception
-			var bodyType = tryExtractBodyType(t);
+		for (var thrownMirror : mirror.getThrownTypes()) {
+			// KnownAnnotations.Empty is used because we don't transfer
+			// any annotations' qualities from method element itself to it's exceptions
+			var errorType = datatypes.interpretType(type, thrownMirror, method,
+				KnownAnnotations.Empty);
 
-			thrown.add(new Declaration.Thrown(type, status, bodyType));
+			int status = extractStatusCode(thrownMirror, DEFAULT_EXCEPTION_STATUS);
+			// default for exception
+
+			var bodyType = tryExtractBodyType(thrownMirror)
+				.map(bodyMirror -> datatypes.interpretType(type, bodyMirror, method,
+					KnownAnnotations.Empty));
+
+			var comment = extractThrownComments(operationComment, thrownMirror);
+
+			thrown.add(new Declaration.Thrown(errorType, thrownMirror, status, bodyType, comment));
 		}
 
 		return List.copyOf(thrown);
 	}
 
-	private Optional<Type> tryExtractBodyType(TypeMirror exceptionType) {
+	private List<String> extractThrownComments(DocComment operationComment, TypeMirror thrownMirror) {
+		String fullTypeString = thrownMirror.toString();
+		@Null var comment = operationComment.thrown().get(fullTypeString);
+		if (comment != null) return comment;
+		@Null var element = (TypeElement) types.asElement(thrownMirror);
+		if (element != null) {
+			comment = operationComment.thrown().get(element.getSimpleName().toString());
+			if (comment != null) return comment;
+			// just in case, this should never give result as we've tried fullTypeString already
+			comment = operationComment.thrown().get(element.getQualifiedName().toString());
+			if (comment != null) return comment;
+		}
+		return List.of(); // give up now, default is empty comment
+	}
+
+	private Optional<TypeMirror> tryExtractBodyType(TypeMirror exceptionType) {
 		// all these casts are bases on the invariants of the Java language
 		// and java annotation processing API
 		// for example, exceptionType can always be represented as TypeElement
@@ -236,17 +288,24 @@ class ContractIntrospector {
 			var element = (TypeElement) types.asElement(implemented);
 			if (element.getQualifiedName().contentEquals(TYPE_RETURNS)) {
 				var mirror = ((DeclaredType) implemented).getTypeArguments().get(0);
-				return Optional.of(new Type.Mirror(mirror));
+				return Optional.of(mirror);
 			}
 		}
 		return Optional.empty();
 	}
 
-	private Declaration.Return extractReturn(ExecutableElement method, ExecutableType mirror) {
-		var returnType = mirror.getReturnType();
-		int status = extractStatusCode(returnType, 200); // default for the return value
+	private Declaration.Return extractReturn(
+		TypeElement type,
+		ExecutableElement method,
+		ExecutableType mirror,
+		DocComment operationComment) {
 
-		return new Declaration.Return(new Type.Mirror(returnType), status);
+		var returnType = mirror.getReturnType();
+		// HTTP_STATUS_OK - default for the return value
+		int status = extractStatusCode(returnType, HTTP_STATUS_OK);
+
+		var decodedType = datatypes.interpretType(type, returnType, method);
+		return new Declaration.Return(decodedType, returnType, status, operationComment.returns());
 	}
 
 	private int extractStatusCode(TypeMirror type, int defaultStatus) {
@@ -265,11 +324,10 @@ class ContractIntrospector {
 		return status != null ? status.value() : defaultStatus;
 	}
 
-	private record HttpBinding(PathTemplate template, Declaration.HttpMethod method) {
-	}
+	private record HttpBinding(PathTemplate template, Declaration.HttpMethod method) {}
 
 	private HttpBinding extractHttpBinding(
-			KnownAnnotations annotations, ExecutableElement method, String pathPrefix) {
+		KnownAnnotations annotations, ExecutableElement method, String pathPrefix) {
 
 		@Null Declaration.HttpMethod httpMethod = null;
 		@Null PathTemplate template = null;
@@ -280,7 +338,7 @@ class ContractIntrospector {
 
 				if (httpMethod != null) {
 					error("Multiple HTTP method annotations are not allowed: %s, but already was %s"
-							.formatted(simpleName, httpMethod.name()), method);
+						.formatted(simpleName, httpMethod.name()), method);
 					continue;
 				}
 
@@ -302,8 +360,8 @@ class ContractIntrospector {
 
 		if (httpMethod == null) {
 			error(("No HTTP method annotation is found on '%s'. " +
-							"Use one of @GET, @POST, @PUT etc.").formatted(method.getSimpleName()),
-					method);
+					"Use one of @GET, @POST, @PUT etc.").formatted(method.getSimpleName()),
+				method);
 			// This bogus method value is just to continue processing after error was reported
 			// model will be considered invalid anyway
 			httpMethod = Declaration.HttpMethod.GET;
@@ -313,9 +371,8 @@ class ContractIntrospector {
 		return new HttpBinding(template, httpMethod);
 	}
 
-	private String commentOf(Element element) {
-		return datatypes.commentOf(element);
-	}
+	private static final String TYPE_RETURNS = "dev.declaration.http.Returns";
 
-	private static final String TYPE_RETURNS = "io.immutables.declaration.http.Returns";
+	public static final int HTTP_STATUS_OK = 200;
+	public static final int DEFAULT_EXCEPTION_STATUS = 500;
 }

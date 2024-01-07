@@ -1,4 +1,4 @@
-// Copyright 2023 Immutables Authors and Contributors
+// Copyright 2024 Immutables Authors and Contributors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,9 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 //
+
 @NonnullByDefault
 @CheckReturnByDefault
-package io.immutables.declaration.http;
+package dev.declaration.http;
 
 import io.immutables.meta.CheckReturnByDefault;
 import io.immutables.meta.NonnullByDefault;
