@@ -24,7 +24,6 @@ final class Exceptions {
 	// fail to load rendering our check useless) and only if this present flag is true
 	private static final boolean postgresDriverPresent;
 	private static final Map<String, String> postgresStatesCodeToName;
-
 	static {
 		boolean isPresent;
 		Map<String, String> codeToName;
@@ -49,23 +48,27 @@ final class Exceptions {
 		postgresStatesCodeToName = codeToName;
 		postgresDriverPresent = isPresent;
 	}
-
 	static Exception refineException(
-			@Null Regresql.SqlSource source,
-			Method method,
-			Regresql.MethodSnippet definition,
-			SQLException originalException) {
+		@Null SqlSource source,
+		@Null Method method,
+		MethodSnippet definition,
+		SQLException originalException) {
 
 		if (source == null
-				|| !postgresDriverPresent
-				|| !(originalException instanceof PSQLException)) {
+			|| !postgresDriverPresent
+			|| !(originalException instanceof PSQLException)) {
 
-			if (declaredInThrows(method, originalException.getClass())) return originalException;
+			if (method != null && declaredInThrows(method, originalException.getClass())) {
+				return originalException;
+			}
 
-			var refinedException = new SqlException(
-					originalException.getMessage(), originalException);
-			refinedException.setStackTrace(trimStackTrace(refinedException.getStackTrace(), method));
-			return refinedException;
+			var refined = new SqlException(
+				originalException.getMessage(), originalException);
+
+			if (method != null) {
+				refined.setStackTrace(trimStackTrace(refined.getStackTrace(), method));
+			}
+			return refined;
 		}
 
 		try {
@@ -83,31 +86,32 @@ final class Exceptions {
 
 			var state = Objects.toString(detailedServerError.getSQLState(), "");
 			var stateName = postgresStatesCodeToName.getOrDefault(state, "");
-			var additionalHint = "%s %s %s".formatted(detailedServerError.getSeverity(), state, stateName);
+			var additionalHint = "%s %s %s".formatted(detailedServerError.getSeverity(), state,
+				stateName);
 
 			// append problem listing to the original exception message
 			var newMessage = ("\n" + source.problemAt(range, mainMessage, additionalHint))
-					.stripTrailing();// remove trailing newline, it will be unnecessary (extra)
+				.stripTrailing();// remove trailing newline, it will be unnecessary (extra)
 
-			if (declaredInThrows(method, SQLException.class)) {
+			if (method != null && declaredInThrows(method, SQLException.class)) {
 				// if declared to throw SQL exception we're reconstructing
 				// refined exception from the refined parts of the original
-				var refinedException = new SQLException(
-						newMessage, state, originalException.getErrorCode());
-				// retain any next refinedException whatever it might be
+				var refined = new SQLException(
+					newMessage, state, originalException.getErrorCode());
+				// retain any next refined whatever it might be
 				@Null SQLException nextException = originalException.getNextException();
 				if (nextException != null) {
-					refinedException.setNextException(nextException);
+					refined.setNextException(nextException);
 				}
-
-				refinedException.setStackTrace(trimStackTrace(refinedException.getStackTrace(), method));
-				return refinedException;
+				refined.setStackTrace(trimStackTrace(refined.getStackTrace(), method));
+				return refined;
 			} else {
-				var refinedException = new SqlException(newMessage, originalException);
-				refinedException.setStackTrace(trimStackTrace(refinedException.getStackTrace(), method));
-				return refinedException;
+				var refined = new SqlException(newMessage, originalException);
+				if (method != null) {
+					refined.setStackTrace(trimStackTrace(refined.getStackTrace(), method));
+				}
+				return refined;
 			}
-
 		} catch (RuntimeException unexpectedExceptionDuringExceptionRefining) {
 			// because of heuristics here, we might miss some aspects of
 			// postgres exception and might receive some exception if our
@@ -121,12 +125,15 @@ final class Exceptions {
 
 	private static boolean declaredInThrows(Method method, Class<?> exceptionType) {
 		return Arrays.stream(method.getExceptionTypes())
-				.anyMatch(thrown -> thrown.isAssignableFrom(exceptionType));
+			.anyMatch(thrown -> thrown.isAssignableFrom(exceptionType));
 	}
 
 	private static Source.Range bestGuessedRange(
-			Regresql.MethodSnippet definition,
-			Regresql.SqlSource source, String mainMessage, int originalPosition) {
+		MethodSnippet definition,
+		SqlSource source,
+		String mainMessage,
+		int originalPosition) {
+
 		int excerptLength = 1;
 		int statementOffset = definition.statementsRange().begin.position;
 		int statementEnd = definition.statementsRange().end.position;
@@ -166,8 +173,8 @@ final class Exceptions {
 					// this -1 empirically works, not sure why exactly
 					int nextStatementOffset = statementTerminatorMatcher.end() - 1;
 					if (matchesQuotedAt(methodContent,
-							nextStatementOffset + originalPosition,
-							quotedExcerpt)) {
+						nextStatementOffset + originalPosition,
+						quotedExcerpt)) {
 						// Consider we've found our match
 						position = statementOffset + nextStatementOffset + originalPosition;
 						matched = true;
@@ -178,12 +185,12 @@ final class Exceptions {
 		}
 
 		return matched && excerptLength > 1
-				? Source.Range.of(source.get(position), source.get(position + excerptLength))
-				: Source.Range.of(source.get(position));
+			? Source.Range.of(source.get(position), source.get(position + excerptLength))
+			: Source.Range.of(source.get(position));
 	}
 
 	private static boolean matchesQuotedAt(
-			CharSequence content, int position, String quotedExcerpt) {
+		CharSequence content, int position, String quotedExcerpt) {
 		if (position >= content.length()) return false;
 		int end = Math.min(content.length(), position + quotedExcerpt.length());
 		var chunk = content.subSequence(position, end).toString();
@@ -191,15 +198,15 @@ final class Exceptions {
 	}
 
 	private static StackTraceElement[] trimStackTrace(
-			StackTraceElement[] originalStack, Method method) {
+		StackTraceElement[] originalStack, Method method) {
 		return Vect.of(originalStack)
-				.dropWhile(s -> !s.getClassName().contains(".$Proxy"))
-				.rangeFrom(1)
-				.prepend(new StackTraceElement(
-						method.getDeclaringClass().getName(),
-						method.getName(),
-						"Dynamic Proxy", -1))
-				.toArray(StackTraceElement[]::new);
+			.dropWhile(s -> !s.getClassName().contains(".$Proxy"))
+			.rangeFrom(1)
+			.prepend(new StackTraceElement(
+				method.getDeclaringClass().getName(),
+				method.getName(),
+				"Dynamic Proxy", -1))
+			.toArray(StackTraceElement[]::new);
 	}
 
 	private static final Pattern QUOTED = Pattern.compile("\"([^\"]+)\"");

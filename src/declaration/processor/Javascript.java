@@ -3,26 +3,27 @@ package dev.declaration.processor;
 import io.immutables.stencil.FilesStencil;
 import io.immutables.stencil.Generator;
 import io.immutables.stencil.Literals;
-
-import java.util.*;
+import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
 import java.util.regex.Pattern;
-import java.util.stream.Collectors;
+import static java.util.stream.Collectors.groupingBy;
 
 @Generator
 abstract class Javascript extends TemplateBase {
 	final FilesStencil files = new FilesStencil();
 
-	abstract void generate(Declaration.Module module);
+	abstract void generate(Module module);
 
-	Map<String, List<Declaration.Datatype>>
-	datatypesByNamespace(List<Declaration> declarations) {
+	Map<String, List<Declaration.Datatype>> datatypesByNamespace(List<Declaration> declarations) {
 		// Sorted tree map will give use shorter namespaces before longer ones
 		// this is important for template
-		return new TreeMap<>(declarations.stream().<Declaration.Datatype>mapMulti((declaration, cons) -> {
-			if (declaration instanceof Declaration.Datatype dt) {
-				cons.accept(dt);
-			}
-		}).collect(Collectors.groupingBy(dt -> namespaceOf(dt.name()))));
+		return new TreeMap<>(declarations.stream().<Declaration.Datatype>mapMulti(
+			(declaration, cons) -> {
+				if (declaration instanceof Declaration.Datatype dt) {
+					cons.accept(dt);
+				}
+			}).collect(groupingBy(dt -> namespaceOf(dt.name()))));
 	}
 
 	CharSequence maybeLiteral(String identifier) {
@@ -35,14 +36,14 @@ abstract class Javascript extends TemplateBase {
 		Json,
 		Text,
 		Blob,
-		Void
+		Void,
 	}
 
 	ReturnContent returns(Declaration.Operation operation) {
 		var type = operation.returns().type();
 		if (type instanceof Type.Primitive primitive) {
 			return switch (primitive) {
-				case Void, Null ->  ReturnContent.Void;
+				case Void, Null -> ReturnContent.Void;
 				default -> ReturnContent.Text;
 			};
 		}

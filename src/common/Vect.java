@@ -315,7 +315,7 @@ public final class Vect<E> implements Iterable<E>, Foldable<E> {
 		if (a.length < elements.length) {
 			return (E[]) Arrays.copyOf(elements, elements.length, a.getClass());
 		}
-		System.arraycopy(elements, 0, a, 0, elements.length);
+		System.arraycopy(elements, 0, (Object[]) a, 0, elements.length);
 		// by the strange (useful?) convention, we set next extra
 		// element to null, but we don't null the rest if any.
 		if (a.length > elements.length) a[elements.length] = null;

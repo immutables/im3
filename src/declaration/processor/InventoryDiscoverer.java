@@ -1,8 +1,7 @@
 package dev.declaration.processor;
 
-import dev.declaration.Exclude;
+import dev.declaration.module.Exclude;
 import dev.declaration.http.Path;
-import dev.declaration.processor.ContractIntrospector;
 
 import java.util.*;
 import javax.annotation.processing.ProcessingEnvironment;
@@ -27,7 +26,7 @@ class InventoryDiscoverer {
 		this.contracts = new ContractIntrospector(processing, datatypes, annotationsCache);
 	}
 
-	Declaration.Module discover(PackageElement inventoryPackage) {
+	Module discover(PackageElement inventoryPackage) {
 		var name = inventoryPackage.getQualifiedName().toString();
 		// we want to have well-defined order, but that may not necessarily
 		// be achievable just by how compiler provides elements to us, so we're
@@ -65,7 +64,7 @@ class InventoryDiscoverer {
 			}
 		}
 
-		return new Declaration.Module(
+		return new Module(
 			name,
 			List.copyOf(declarations),
 			datatypes.commentOf(inventoryPackage).lines()

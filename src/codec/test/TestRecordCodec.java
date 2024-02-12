@@ -1,9 +1,9 @@
 package io.immutables.codec.test;
 
 import io.immutables.codec.*;
-import io.immutables.codec.record.Tagged;
-import io.immutables.meta.Inline;
 import io.immutables.codec.record.RecordsFactory;
+import io.immutables.codec.record.meta.Inline;
+import io.immutables.codec.record.meta.Tagged;
 import java.io.IOException;
 import java.util.List;
 import java.util.Optional;
@@ -176,7 +176,7 @@ public class TestRecordCodec extends CodecFixture {
 		thatEqualRoundtrip(codec, new TagDef.A(1));
 		thatEqualRoundtrip(codec, new TagDef.B(2));
 
-		that(toJson(codec, new TagDef.A(5))).is("{$case:\"A\",a:5}");
-		that(toJson(codec, new TagDef.B(7))).is("{$case:\"B\",a:7}");
+		that(toJson(codec, new TagDef.A(5))).is("{@case:\"A\",a:5}");
+		that(toJson(codec, new TagDef.B(7))).is("{@case:\"B\",a:7}");
 	}
 }

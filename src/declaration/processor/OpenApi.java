@@ -13,7 +13,7 @@ import static java.util.stream.Collectors.groupingBy;
 abstract class OpenApi extends TemplateBase {
 	final FilesStencil files = new FilesStencil();
 
-	abstract void generate(Declaration.Module module);
+	abstract void generate(Module module);
 
 	Map<String, List<Declaration.Operation>> groupByPath(
 		Collection<Declaration.Operation> operations) {
@@ -31,7 +31,7 @@ abstract class OpenApi extends TemplateBase {
 	}
 
 	// this should be safer to downstream OpenApi use
-	String typeName(Declaration.Reference reference) {
+	String typeName(Reference reference) {
 		return reference.name().replace('.', '_');
 	}
 

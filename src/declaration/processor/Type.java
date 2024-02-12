@@ -31,11 +31,11 @@ public sealed interface Type {
 	record Variable(int variable, String name) implements Type {}
 
 	record Terminal(
-		Declaration.Reference terminal
+		Reference terminal
 	) implements Type {}
 
 	record Applied(
-		Declaration.Reference applies,
+		Reference applies,
 		List<Type> arguments
 	) implements Type {}
 

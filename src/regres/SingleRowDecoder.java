@@ -9,11 +9,13 @@ import java.io.IOException;
 
 final class SingleRowDecoder extends Codec<Object, In, Out> {
 	private final Codec<Object, In, Out> codec;
-	private final SqlAccessor.Single single;
+	private final boolean optional;
+	private final boolean ignoreMore;
 
-	SingleRowDecoder(Codec<Object, In, Out> codec, SqlAccessor.Single single) {
+	SingleRowDecoder(Codec<Object, In, Out> codec, boolean optional, boolean ignoreMore) {
 		this.codec = codec;
-		this.single = single;
+		this.optional = optional;
+		this.ignoreMore = ignoreMore;
 	}
 
 	@Override
@@ -26,14 +28,14 @@ final class SingleRowDecoder extends Codec<Object, In, Out> {
 			returnValue = codec.decode(in);
 
 			if (in.hasNext()) {
-				if (!single.ignoreMore()) throw new SqlException(
+				if (!ignoreMore) throw new SqlException(
 					"More than one row available, use @Single(ignoreMore=true) to skip the rest");
 				do {
 					in.skip();
 				} while (in.hasNext());
 			}
 		} else {
-			if (!single.optional()) throw new SqlException(
+			if (!optional) throw new SqlException(
 				"Exactly one row expected as result, was none. " +
 					"Use @Single(optional=true) to allow no results.");
 

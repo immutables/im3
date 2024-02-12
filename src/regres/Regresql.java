@@ -1,11 +1,12 @@
 package io.immutables.regres;
 
-import io.immutables.codec.*;
+import io.immutables.codec.Codec;
+import io.immutables.codec.RemapContainerCodec;
+import io.immutables.codec.Types;
 import io.immutables.common.ProxyHandler;
 import io.immutables.common.Source;
 import io.immutables.meta.Null;
 import io.immutables.regres.SqlAccessor.*;
-
 import java.io.*;
 import java.lang.reflect.*;
 import java.nio.charset.StandardCharsets;
@@ -13,11 +14,8 @@ import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.util.*;
 import java.util.Map.Entry;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
-
-import static java.util.Objects.requireNonNull;
 import static java.util.stream.Collectors.joining;
 
 /**
@@ -32,112 +30,17 @@ import static java.util.stream.Collectors.joining;
 public final class Regresql {
 	private Regresql() {}
 
-	record MethodSnippet(
-		String name,
-		List<String> placeholders,
-		Source.Range identifierRange,
-		Source.Range statementsRange,
-		String preparedStatements
-	) {
-		static class Builder {
-			@Null String name;
-			List<String> placeholders = new ArrayList<>();
-			@Null Source.Range identifierRange;
-			@Null Source.Range statementsRange;
-			@Null String preparedStatements;
-
-			MethodSnippet build() {
-				return new MethodSnippet(
-					requireNonNull(name),
-					List.copyOf(placeholders),
-					requireNonNull(identifierRange),
-					requireNonNull(statementsRange),
-					requireNonNull(preparedStatements)
-				);
-			}
-		}
-	}
-
-	record SqlSource(
-		String filename,
-		CharSequence content,
-		Source.Lines lines
-	) {
-		Source.Position get(int position) {
-			return lines().get(position);
-		}
-
-		Source.Problem problemAt(Source.Range range, String message, String hint) {
-			return new Source.Problem(filename(), content(), lines(), range, message, hint);
-		}
-	}
-
-	record ParameterProfile(
-		String name,
-		boolean batch,
-		Optional<String> spread,
-		Codec<Object, In, Out> codec,
-		Type type
-	) {}
-
-	record MethodProfile(
-		String name,
-		OptionalInt batchParameter,
-		boolean returnUpdateCount,
-		boolean extractColumn,
-		List<ParameterProfile> parameters,
-		Map<String, ParameterProfile> parametersByName,
-		Optional<Codec<Object, In, Out>> returnTypeCodec,
-		Type returnType
-	) {
-		boolean returnResultSet() {
-			return !returnUpdateCount();
-		}
-
-    NameIndex parameterIndex() {
-      return NameIndex.known(parameters().stream()
-          .map(ParameterProfile::name)
-          .toArray(String[]::new));
-    }
-
-		static class Builder {
-			@Null String name;
-			@SuppressWarnings("all")
-			OptionalInt batchParameter = OptionalInt.empty();
-			boolean returnUpdateCount;
-			boolean extractColumn;
-			// this keeps parameter in order
-			List<ParameterProfile> parameters = new ArrayList<>();
-			Map<String, ParameterProfile> parametersByName = new HashMap<>();
-			@Null Type returnType;
-			@SuppressWarnings("all")
-			Optional<Codec<Object, In, Out>> returnTypeCodec = Optional.empty();
-
-			MethodProfile build() {
-				return new MethodProfile(
-						requireNonNull(name),
-						batchParameter,
-						returnUpdateCount,
-						extractColumn,
-						List.copyOf(parameters),
-						Map.copyOf(parametersByName),
-						returnTypeCodec,
-						requireNonNull(returnType));
-			}
-		}
-	}
-
 	@SuppressWarnings("unchecked") // cast guaranteed by Proxy contract, runtime verified
 	public static <T> T create(
-			Class<T> accessor,
-			Codec.Resolver codecs,
-			ConnectionProvider connections) {
+		Class<T> accessor,
+		Codec.Resolver codecs,
+		ConnectionProvider connections) {
 		if (!accessor.isInterface()
-				|| accessor.getCanonicalName() == null
-				|| !SqlAccessor.class.isAssignableFrom(accessor)) {
+			|| accessor.getCanonicalName() == null
+			|| !SqlAccessor.class.isAssignableFrom(accessor)) {
 			throw new WrongDeclaration(
-					"%s is not valid SQL access interface (top level interface extending %s)"
-							.formatted(accessor, SqlAccessor.class));
+				"%s is not valid SQL access interface (top level interface extending %s)"
+					.formatted(accessor, SqlAccessor.class));
 		}
 
 		return (T) Proxy.newProxyInstance(
@@ -146,20 +49,90 @@ public final class Regresql {
 			handlerFor(accessor, codecs, connections));
 	}
 
+	public static SqlFactory factory(Codec.Resolver codecs, ConnectionProvider connections) {
+		return new SqlFactory() {
+			@Override public SqlStatement statement() {
+				return new SqlStatement(codecs, connections);
+			}
+
+			@Override public ConnectionProvider.Handle handle() throws SQLException {
+				return ConnectionHandle.get(connections);
+			}
+
+			@Override public <T> T transaction(Supplier<T> inTransaction) {
+				return inTransaction(this::handle, false, false, inTransaction);
+			}
+
+			@Override public <T> T inNewTransaction(Supplier<T> inTransaction) {
+				return inTransaction(this::handle, false, true, inTransaction);
+			}
+
+			@Override public <T> T readonly(Supplier<T> inTransaction) {
+				return inTransaction(this::handle, true, false, inTransaction);
+			}
+		};
+	}
+
+	interface GetHandle {
+		ConnectionProvider.Handle handle() throws SQLException;
+	}
+
+	private static <T> T inTransaction(GetHandle handler,
+		boolean readonly, boolean requireNew, Supplier<T> inTransaction) {
+		List<SQLException> suppressed = new ArrayList<>(0);
+
+		try (var handle = handler.handle()) {
+			var c = handle.connection();
+			boolean wasAutoCommits = c.getAutoCommit();
+			boolean wasReadOnly = c.isReadOnly();
+			if (readonly && !wasReadOnly) c.setReadOnly(true);
+			if (wasAutoCommits) c.setAutoCommit(false);
+			try {
+				var result = inTransaction.get();
+				if (wasAutoCommits || requireNew) {
+					c.commit();
+				}
+				return result;
+			} catch (RuntimeException e) {
+				if (wasAutoCommits || requireNew) {
+					c.rollback();
+				}
+				throw e;
+			} finally {
+				if (wasAutoCommits) try {
+					c.setAutoCommit(true);
+				} catch (SQLException e) {
+					suppressed.add(e);
+				}
+				if (readonly && !wasReadOnly) try {
+					c.setReadOnly(false);
+				} catch (SQLException e) {
+					suppressed.add(e);
+				}
+			}
+		} catch (RuntimeException e) {
+			for (var s : suppressed) e.addSuppressed(s);
+			throw e;
+		} catch (SQLException e) {
+			for (var s : suppressed) e.addSuppressed(s);
+			throw new SqlException(e.getMessage(), e);
+		}
+	}
+
 	private static Map<String, MethodProfile> compileProfiles(
 		Class<?> accessor,
 		Set<String> methods,
 		Codec.Resolver codecs) {
 
-		Map<String, MethodProfile> map = new HashMap<>();
+		var map = new HashMap<String, MethodProfile>();
 
 		for (Method m : accessor.getMethods()) {
-			String name = methodName(m);
+			var name = methodName(m);
 			if (methods.contains(name)) {
 				map.put(name, profileMethod(m, codecs));
 			}
-			// ignore here everything else, either assume these kind of mismatches handled elsewhere
-			// or just wish it will be ok.
+			// ignore here everything else, either assume these kind of mismatches handled
+			// elsewhere or just wish it will be ok.
 		}
 		return map;
 	}
@@ -177,8 +150,8 @@ public final class Regresql {
 
 		if (updateCount != null && (column != null || single != null))
 			throw new WrongDeclaration(
-				"@UpdateCount and (@Column extraction or @Single result) cannot be used together on "
-						+ method);
+				"@UpdateCount and (@Column extraction or @Single result)" +
+					" cannot be used together on " + method);
 
 		if (updateCount != null
 			&& returnType != int.class
@@ -197,32 +170,35 @@ public final class Regresql {
 		boolean useBatch = determineBatchParameter(builder);
 
 		if (useBatch && !returnUpdateCount) throw new WrongDeclaration(
-				"@Batch requires returning @UpdateCount or void return type" + method);
+			"@Batch requires returning @UpdateCount or void return type" + method);
 
 		if (!returnUpdateCount) {
 			var maybeCodec = codecs.resolve(returnType, JdbcMedium.Internal);
 			if (maybeCodec.isEmpty()) throw new WrongDeclaration(
-					"No JDBC codec registered for return type %s in method %s"
-							.formatted(returnType, method));
+				"No JDBC codec registered for return type %s in method %s"
+					.formatted(returnType, method));
 
 			var codec = maybeCodec.get();
 
 			if (column != null) {
+				var columnName = column.value();
+				var columnIndex = column.index();
 				if (single != null) {
-					codec = new ColumnExtractor(codec, column);
+					codec = new ColumnExtractor(codec, columnName, columnIndex);
 				} else if (codec instanceof RemapContainerCodec remapping) {
-					codec = remapping.remap(element -> new ColumnExtractor(element, column));
+					codec = remapping.remap(element ->
+						new ColumnExtractor(element, columnName, columnIndex));
 				} else throw new WrongDeclaration(
-					"@Column can only be used with @Single for " + method + ". " +
-							"The codec for " + returnType + " is not known to support such extraction " +
-							"(a ContainerCodec can)");
+					"@Column can only be used with @Single for " + method + ". "
+						+ "The codec for " + returnType + " is not known to support such "
+						+ "extraction (a List, Set, Optional, can, for example)");
 			}
 
 			if (single != null) {
-				codec = new SingleRowDecoder(codec, single);
+				codec = new SingleRowDecoder(codec, single.optional(), single.ignoreMore());
 			}
 
-			builder.returnTypeCodec = Optional.of(codec);
+			builder.returnTypeCodec = codec;
 		}
 
 		return builder.build();
@@ -233,7 +209,7 @@ public final class Regresql {
 		var parameters = builder.parameters;
 		for (int i = 0; i < parameters.size(); i++) {
 			if (parameters.get(i).batch()) {
-				builder.batchParameter = OptionalInt.of(i);
+				builder.batchParameter = i;
 				useBatch = true;
 				break;
 			}
@@ -241,29 +217,33 @@ public final class Regresql {
 		return useBatch;
 	}
 
-	private static void profileParameters(Method m, Codec.Resolver codecs, MethodProfile.Builder builder) {
+	private static void profileParameters(
+		Method m, Codec.Resolver codecs, MethodProfile.Builder builder) {
+
 		Type[] types = m.getGenericParameterTypes();
 
 		int batchCount = 0;
-		Parameter[] parameters = m.getParameters();
+		var parameters = m.getParameters();
 
 		for (int i = 0; i < parameters.length; i++) {
-			Parameter p = parameters[i];
+			Parameter parameter = parameters[i];
 
-			@Null Named named = p.getAnnotation(Named.class);
-			@Null Batch batch = p.getAnnotation(Batch.class);
-			@Null Spread spread = p.getAnnotation(Spread.class);
+			@Null var namedAnnotation = parameter.getAnnotation(Named.class);
+			@Null var batchAnnotation = parameter.getAnnotation(Batch.class);
+			@Null var spreadAnnotation = parameter.getAnnotation(Spread.class);
 
-			boolean hasName = p.isNamePresent();
+			boolean hasName = parameter.isNamePresent();
 
-			if (spread == null && named == null && !hasName) throw new WrongDeclaration(
-				"Parameter #" + i + " of "
-					+ m.getDeclaringClass() + "." + methodName(m)
-					+ " must have @Named annotation. (unless @Spread)");
+			if (spreadAnnotation == null && namedAnnotation == null && !hasName) {
+				throw new WrongDeclaration(
+					"Parameter #" + i + " of "
+						+ m.getDeclaringClass() + "." + methodName(m)
+						+ " must have @Named annotation");
+			}
 
 			Type type = types[i];
 
-			if (batch != null) {
+			if (batchAnnotation != null) {
 				batchCount++;
 
 				Class<?> raw = Types.toRawType(type);
@@ -278,18 +258,36 @@ public final class Regresql {
 			var codec = codecs.resolve(type, JdbcMedium.Internal);
 
 			if (codec.isEmpty()) throw new WrongDeclaration(
-					"No JDBC codec can be obtained for " + type);
+				"No JDBC codec can be obtained for " + type);
 
 			{
-				var name = named != null ? named.value() : p.getName();
-				var spreadWith = Optional.ofNullable(spread).map(Spread::prefix);
-				boolean useBatch = batch != null;
+				var spreadWith = Optional.ofNullable(spreadAnnotation).map(Spread::prefix);
+				boolean useBatch = batchAnnotation != null;
+
+				String name;
+				if (namedAnnotation != null) {
+					name = namedAnnotation.value();
+					if (!IdentifierPatterns.param.matcher(name).matches()) {
+						throw new WrongDeclaration(
+							"@Named(" + name + ") has illegal value. Should be: "
+								+ IdentifierPatterns.DESCRIBE_PARAM);
+					}
+				} else if (parameter.isNamePresent()) {
+					name = parameter.getName();
+				} else if (spreadWith.isPresent()) {
+					name = "<unspecified-" + i + ">";
+				} else {
+					throw new WrongDeclaration(
+						"Parameter #" + i + " should have @Named annotation to provide a name"
+							+ " when parameter names are not available after compilation"
+							+ "(-parameters javac flag)");
+				}
 
 				var profile = new ParameterProfile(name, useBatch, spreadWith, codec.get(), type);
 
 				@Null var existing = builder.parametersByName.put(name, profile);
 				if (existing != null) throw new WrongDeclaration(
-						"Method parameters have duplicate names, check @Named annotations: " + name);
+					"Method parameters have duplicate names, check @Named annotations: " + name);
 
 				builder.parameters.add(profile);
 			}
@@ -299,13 +297,15 @@ public final class Regresql {
 			"@Batch should not be present on more than one parameter on " + m);
 	}
 
-	static InvocationHandler handlerFor(Class<?> accessor, Codec.Resolver codecs,
+	static InvocationHandler handlerFor(
+		Class<?> accessor,
+		Codec.Resolver codecs,
 		ConnectionProvider provider) {
+
 		Set<String> methods = uniqueAccessMethods(accessor);
 
-		// We allow "empty" interfaces as a way to access SQL (via getConnectionProvider() etc
+		// We allow "empty" interfaces as a way to access SQL (via ConnectionProvider etc)
 		// and don't load/require SQL sources in this case
-
 		@Null SqlSource source;
 		Map<String, MethodSnippet> snippets;
 		Map<String, MethodProfile> profiles;
@@ -321,26 +321,53 @@ public final class Regresql {
 
 		return new ProxyHandler() {
 			@Override
-			protected @Null Object handleInterfaceMethod(Object proxy, Method method, Object[] arguments)
-					throws Throwable {
+			protected @Null Object handleInterfaceMethod(
+				Object proxy, Method method, Object[] arguments) throws Throwable {
 				if (isConnectionHandleMethod(method)) return provider.handle();
 
-				String name = methodName(method);
-				MethodSnippet snippet = snippets.get(name);
-				MethodProfile profile = profiles.get(name);
+				var name = methodName(method);
+				var snippet = snippets.get(name);
+				var profile = profiles.get(name);
 
 				assert profile != null;
 
-				try (
-						var handle = provider.handle();
-						var statement = handle.connection().prepareStatement(snippet.preparedStatements())) {
-					prepareStatement(statement, profile, snippet, arguments);
-					return executeStatement(statement, profile);
-				} catch (SQLException sqlException) {
-					throw Exceptions.refineException(source, method, snippet, sqlException);
-				}
+				return invokeSqlSnippet(provider, method, source, snippet, profile, arguments);
 			}
 		};
+	}
+
+	static @Null Object invokeSqlSnippet(
+		ConnectionProvider provider,
+		@Null Method method,
+		@Null SqlSource source,
+		MethodSnippet snippet,
+		MethodProfile profile,
+		Object[] arguments) throws Exception {
+
+		try (
+			var handle = provider.handle();
+			var statement = handle.connection().prepareStatement(snippet.statements())) {
+
+			prepareStatement(statement, profile, snippet, arguments);
+
+			@Null Object result;
+
+			try {
+				result = executeStatement(statement, profile);
+			} catch (SQLException exception) {
+				throw Exceptions.refineException(source, method, snippet, exception);
+			}
+
+			if (profile.returnType() == void.class) {
+				// for the case where update count is to be ignored (void method)
+				// we still carry update count up to here,
+				// maybe will use it for debugging/logging
+				assert profile.returnsUpdateCount();
+				result = null;
+			}
+
+			return result;
+		}
 	}
 
 	private static boolean isConnectionHandleMethod(Method method) {
@@ -382,8 +409,7 @@ public final class Regresql {
 					statement.addBatch();
 				}
 			} else throw new WrongDeclaration(
-					"Batch parameter should be Iterable or an array");
-
+				"Batch parameter should be Iterable or an array");
 		} else {
 			for (int i = 0; i < parameters.size(); i++) {
 				putArgument(out, parameters.get(i), i, args[i]);
@@ -392,8 +418,7 @@ public final class Regresql {
 		}
 	}
 
-	private static void putArgument(StatementOut out, ParameterProfile p, int index,
-																	Object value)
+	private static void putArgument(StatementOut out, ParameterProfile p, int index, Object value)
 		throws IOException {
 		out.putField(index);
 		if (p.spread().isPresent()) {
@@ -403,7 +428,7 @@ public final class Regresql {
 	}
 
 	private static SqlSource loadSqlSource(Class<?> accessorInterface) throws AssertionError {
-		String filename = resourceFilenameFor(accessorInterface);
+		String filename = Snippets.resourceFilenameFor(accessorInterface);
 		@Null InputStream resource = accessorInterface.getResourceAsStream(filename);
 
 		if (resource == null) throw new MissingResourceException(
@@ -422,21 +447,24 @@ public final class Regresql {
 
 		// none of the simpler ways available without libraries (?)
 		// transferTo works for byte streams, not chars
-		try(var source = new BufferedReader(new InputStreamReader(resource, StandardCharsets.UTF_8))) {
-			char[] buffer = new char[8192];
+		try (var source =
+			new BufferedReader(new InputStreamReader(resource, StandardCharsets.UTF_8))) {
+			char[] buffer = new char[BUFFER_SIZE];
 			int length;
 			while ((length = source.read(buffer)) != -1) {
 				content.write(buffer, 0, length);
 			}
 		} catch (IOException readingClasspathResourceFailed) {
-			throw new UncheckedIOException("Cannot read " + filename, readingClasspathResourceFailed);
+			throw new UncheckedIOException("Cannot read " + filename,
+				readingClasspathResourceFailed);
 		}
 
 		return new SqlSource(filename, content, Source.Lines.from(content));
 	}
 
-	private static Map<String, MethodSnippet> parseSnippets(SqlSource source, Set<String> methods) {
-		var snippets = parse(source.content(), source.lines());
+	private static Map<String, MethodSnippet> parseSnippets(SqlSource source,
+		Set<String> methods) {
+		var snippets = Snippets.parse(source.content(), source.lines());
 
 		var problems = new ArrayList<Source.Problem>();
 		var unique = new HashMap<String, MethodSnippet>();
@@ -473,8 +501,8 @@ public final class Regresql {
 		for (var name : methods) {
 			if (!snippets.containsKey(name)) {
 				problems.add(source.problemAt(Source.Range.of(source.get(0)),
-						"Missing `" + name + "` declaration",
-						"Method declared in interface but has no SQL"));
+					"Missing `" + name + "` declaration",
+					"Method declared in interface but has no SQL"));
 			}
 		}
 
@@ -491,15 +519,15 @@ public final class Regresql {
 			.collect(Collectors.groupingBy(n -> n));
 
 		var duplicates = methodNamesGrouped.entrySet()
-				.stream()
-				.filter(e -> e.getValue().size() > 1)
-				.map(Entry::getKey)
-				.toList();
+			.stream()
+			.filter(e -> e.getValue().size() > 1)
+			.map(Entry::getKey)
+			.toList();
 
 		if (!duplicates.isEmpty()) {
 			throw new WrongDeclaration(
-					"Method overloads are not supported for %s: %s. Please use distinct names"
-							.formatted(accessorInterface, duplicates));
+				"Method overloads are not supported for %s: %s. Please use distinct names"
+					.formatted(accessorInterface, duplicates));
 		}
 
 		return methodNamesGrouped.keySet();
@@ -521,152 +549,11 @@ public final class Regresql {
 		return Modifier.isAbstract(m.getModifiers()) && !isConnectionHandleMethod(m);
 	}
 
-	private static String resourceFilenameFor(Class<?> accessorInterface) {
-		String canonicalName = accessorInterface.getCanonicalName();
-		assert canonicalName != null : "precondition checked before";
-		// not sure if null package can be for unnamed package, handling just in case
-		Package packageObject = accessorInterface.getPackage();
-		String packageName = packageObject != null ? packageObject.getName() : "";
-		String packagePath = packageName.replace('.', '/');
-		String resourceFilename;
-		if (canonicalName.startsWith(packageName + ".")) {
-			resourceFilename = packagePath + "/" + canonicalName.substring(packageName.length() + 1);
-		} else { // may include case for unnamed packages etc
-			resourceFilename = canonicalName;
-		}
-		return "/" + resourceFilename + ".sql";
-	}
-
-	private static Map<String, List<MethodSnippet>> parse(CharSequence content, Source.Lines lines) {
-		var allMethods = new HashMap<String, List<MethodSnippet>>();
-
-		class Parser {
-			@Null MethodSnippet.Builder openBuilder;
-			@Null Source.Range openRange;
-
-			void parse() {
-				for (int i = 1; i <= lines.count(); i++) {
-					Source.Range range = lines.getLineRange(i);
-					CharSequence line = range.get(content);
-					String name = methodName(line);
-
-					if (!name.isEmpty()) {
-						// method identifier line
-						// flush any open method and start
-						// new method builder
-						flushMethod(content, range);
-						openMethod(name, range);
-					} else {
-						// regular statement line
-						if (openBuilder != null) {
-							// begin or expand range for open method
-							openRange = openRange == null ? range : openRange.span(range);
-						} else {
-							// can collect unnamed leading lines for error reporting
-							openMethod("", range);
-						}
-					}
-				}
-
-				var initialEmptyRange = Source.Range.of(Source.Position.of(0, 1, 1));
-				flushMethod(content, initialEmptyRange);
-			}
-
-			String methodName(CharSequence line) {
-				if (line.length() > 3
-					&& line.charAt(0) == '-'
-					&& line.charAt(1) == '-'
-					&& line.charAt(2) == '.') {
-					// can return empty string which is no method declared on this line
-					// threat it as just an SQL comment. Or can be illegal name
-					// anyway we expect these to be matched by the data access interface
-					// method names and any discrepancy returned as errors
-					return line.subSequence(3, line.length()).toString().trim();
-				}
-				return ""; // none
-			}
-
-			void openMethod(String name, Source.Range range) {
-				openRange = null;
-				openBuilder = new MethodSnippet.Builder();
-				openBuilder.identifierRange = range;
-				openBuilder.name = name;
-			}
-
-			void flushMethod(CharSequence content, Source.Range currentRange) {
-				if (openBuilder != null) {
-					if (openRange != null) prepareRange(content);
-					else prepareEmpty(currentRange);
-
-					allMethods.computeIfAbsent(openBuilder.name, k -> new ArrayList<>())
-							.add(openBuilder.build());
-				}
-			}
-
-			/**
-			 * incomplete / empty method, defer error to runtime (like empty SQL statement)
-			 * otherwise it would too painful during development
-			 */
-			void prepareEmpty(Source.Range currentRange) {
-				assert openBuilder != null;
-				openBuilder.statementsRange = Source.Range.of(currentRange.begin);
-				openBuilder.preparedStatements = "--";
-			}
-
-			/**
-			 * Parses source to extract placeholder list and also
-			 * builds prepared statement where placeholders are substituted
-			 * with '?' character to match the JDBC prepared statement syntax.
-			 */
-			void prepareRange(CharSequence content) {
-				assert openBuilder != null;
-				assert openRange != null;
-				openBuilder.statementsRange = openRange;
-
-				CharSequence source = content.subSequence(
-					openRange.begin.position,
-					openRange.end.position);
-
-				StringBuilder buffer = new StringBuilder();
-				Matcher matcher = PLACEHOLDER.matcher(source);
-				while (matcher.find()) {
-					if (source.charAt(matcher.start(0) + 1) == ':') {
-						// first char is always ':' in this match, so
-						// we look for the second char and see if we
-						// ignore and append the same SQL verbatim, consider this
-						// just type coercion expression starting with '::'.
-						// Could be potentially "fixed" by just not matching
-						// such sequences in the first place if we have better pattern, idk
-						matcher.appendReplacement(buffer, "$0");
-					} else {
-						String placeholder = matcher.group(1);
-						openBuilder.placeholders.add(placeholder);
-						matcher.appendReplacement(buffer, "?");
-						// append number of spaces to match the length of original
-						// placeholder so SQL syntax error reporting would operate
-						// on the same source positions/offsets as template definitions.
-						for (int i = 0; i < placeholder.length(); i++) {
-							buffer.append(' ');
-						}
-					}
-				}
-				matcher.appendTail(buffer);
-				openBuilder.preparedStatements = buffer.toString();
-			}
-		}
-
-		new Parser().parse();
-
-		return Map.copyOf(allMethods);
-	}
-
 	static @Null Object executeStatement(PreparedStatement statement, MethodProfile profile)
 		throws SQLException, IOException {
 
 		Type returnType = profile.returnType();
-		boolean useUpdateCount = profile.returnUpdateCount();
-		boolean voidUpdateCount = useUpdateCount
-			&& returnType == void.class;
+		boolean useUpdateCount = profile.returnsUpdateCount();
 		boolean largeUpdateCount = useUpdateCount
 			&& (returnType == long.class || returnType == long[].class);
 		boolean sumUpdateCount = useUpdateCount
@@ -689,9 +576,7 @@ public final class Regresql {
 			} else { // long update count and void
 				int[] updates = statement.executeBatch();
 
-				if (voidUpdateCount) {
-					returnValue = null;
-				} else if (sumUpdateCount) {
+				if (sumUpdateCount) {
 					returnValue = Arrays.stream(updates).sum();
 				} else {
 					returnValue = updates;
@@ -701,9 +586,7 @@ public final class Regresql {
 			boolean hasResultSet = statement.execute();
 
 			if (useUpdateCount) {
-				if (voidUpdateCount) {
-					returnValue = null;
-				} else if (largeUpdateCount) { // long update count
+				if (largeUpdateCount) { // long update count
 					var updates = new ArrayList<Long>();
 					for (long count; ; ) {
 						count = statement.getLargeUpdateCount();
@@ -756,7 +639,7 @@ public final class Regresql {
 					if (hasResultSet) {
 						if (wasResultSet) throw new WrongDeclaration(
 							"Only single ResultSet can be processed, " +
-									"Use sql UNION ALL to merge multiple results");
+								"Use sql UNION ALL to merge multiple results");
 
 						var in = new ResultIn(statement.getResultSet());
 						returnValue = codec.decode(in);
@@ -766,12 +649,12 @@ public final class Regresql {
 
 				if (!wasResultSet) throw new WrongDeclaration(
 					"ResultSet expected but there was none. " +
-							"Fix SQL query, or use void return type or int/long @UpdateCount");
+						"Fix SQL query, or use void return type or int/long @UpdateCount");
 			} // end resultsets
 		} // end not batch
 
 		return returnValue;
 	}
 
-	private static final Pattern PLACEHOLDER = Pattern.compile(":{1,2}([a-zA-Z0-9.]+)");
+	public static final int BUFFER_SIZE = 8_192;
 }

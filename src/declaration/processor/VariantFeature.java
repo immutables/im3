@@ -50,8 +50,10 @@ sealed interface VariantFeature {
 				var datatype = entry.getKey();
 				var feature = entry.getValue();
 
-				uniqueByCase.computeIfAbsent(datatype,
-						k -> new ArrayList<>()).add(feature);
+				uniqueByCase.computeIfAbsent(
+					datatype,
+					k -> new ArrayList<>()
+				).add(feature);
 			}
 		}
 		return uniqueByCase;

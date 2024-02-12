@@ -50,17 +50,17 @@ public final class PathTemplate {
 		return uri;
 	}
 
-	// here and in other routines we assume at least somewhat sane syntax, so
-	// better, more precise parsing and validation is probably needed
+	// here and in other routines we assume at least somewhat sane syntax,
+	// so better, more precise parsing and validation is probably needed
 	private static void collectFromQuery(String uri, Map<String, Parameter> parameters) {
 		int queryAt = uri.indexOf('?');
 		if (queryAt >= 0 && queryAt + 1 < uri.length()) {
 			var queryPart = uri.substring(queryAt + 1);
-			for (var q : queryPart.split("&")) {
-				int indexOfEquals = q.indexOf('=');
+			for (var parameter : queryPart.split("&")) {
+				int indexOfEquals = parameter.indexOf('=');
 				if (indexOfEquals >= 0) {
-					var k = q.substring(0, indexOfEquals);
-					var v = q.substring(indexOfEquals + 1);
+					var k = parameter.substring(0, indexOfEquals);
+					var v = parameter.substring(indexOfEquals + 1);
 					String name;
 					String httpName;
 					@Null String value;
@@ -84,7 +84,7 @@ public final class PathTemplate {
 				} else {
 					// case: ?a&b
 					// only parameter names, no values
-					parameters.put(q, new Parameter(q, q, Parameter.Kind.Query, null));
+					parameters.put(parameter, new Parameter(parameter, parameter, Parameter.Kind.Query, null));
 				}
 			}
 		}

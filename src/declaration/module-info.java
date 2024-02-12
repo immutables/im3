@@ -6,4 +6,5 @@ module dev.declaration {
 
 	exports dev.declaration;
 	exports dev.declaration.http;
+	exports dev.declaration.module;
 }

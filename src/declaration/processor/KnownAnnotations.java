@@ -1,8 +1,8 @@
 package dev.declaration.processor;
 
-import dev.declaration.Exclude;
+import dev.declaration.module.Exclude;
 import dev.declaration.http.*;
-import io.immutables.meta.Inline;
+import io.immutables.codec.record.meta.Inline;
 import io.immutables.meta.Null;
 import java.lang.annotation.Annotation;
 import java.util.HashMap;

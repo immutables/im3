@@ -2,9 +2,7 @@ package dev.declaration.processor;
 
 import io.immutables.meta.Null;
 import io.immutables.stencil.Generator;
-import io.immutables.stencil.Template;
 import io.immutables.stencil.template.ProcessingStencil;
-import java.util.List;
 import java.util.stream.Stream;
 import javax.lang.model.type.TypeMirror;
 
@@ -12,7 +10,7 @@ import javax.lang.model.type.TypeMirror;
 abstract class SpringMvc extends TemplateBase {
 	final ProcessingStencil sources = new ProcessingStencil();
 
-	abstract void generate(Declaration.Module module);
+	abstract void generate(Module module);
 
 	static String pathOf(Declaration.Operation operation) {
 		var path = operation.path().with(operation.fixedQuery());

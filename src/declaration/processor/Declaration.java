@@ -12,22 +12,6 @@ import javax.lang.model.type.TypeMirror;
  * and not for builtin primitives.
  */
 public sealed interface Declaration extends Documented {
-	// TODO move to the top level, rename?
-	record Module(
-		String name,
-		List<Declaration> declarations,
-		List<String> comment
-	) implements Documented {}
-
-	/**
-	 * Symbolic reference to a Declaration, which needs to be resolved/de-referenced
-	 * to a real declaration. We use it to marshall and pass declarations around by-reference.
-	 */
-	// TODO Move to top level
-	record Reference(
-		String module,
-		String name) {}
-
 	Reference reference();
 
 	default String name() {
@@ -172,8 +156,15 @@ public sealed interface Declaration extends Documented {
 			Query,
 			Body,
 			Unmapped,
-			// Header, Matrix // Who needs these?
+			//Matrix // unlikely to support soon
+			//Header // wish we will not have to implement it
 		}
+
+		public boolean inPath() {return mapping == Mapping.Path;}
+
+		public boolean inBody() {return mapping == Mapping.Body;}
+
+		public boolean inQuery() {return mapping == Mapping.Query;}
 	}
 
 	// These are all-uppercase to mimic HTTPs method spelling

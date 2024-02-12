@@ -8,15 +8,15 @@ import java.util.*;
 abstract class Markdown extends TemplateBase {
 	final FilesStencil files = new FilesStencil();
 
-	abstract void generate(Declaration.Module module);
+	abstract void generate(Module module);
 
-	String linkTo(Declaration from, Declaration.Module module) {
+	String linkTo(Declaration from, Module module) {
 		return (module.name().equals(from.module())
 			? "."
 			: ("../" + module.name())) + "/readme.md";
 	}
 
-	String linkTo(Declaration.Reference from, Declaration.Reference to) {
+	String linkTo(Reference from, Reference to) {
 		return ((to.module().equals(from.module())
 			? "."
 			: ("../" + to.name())) + "/" + filenameAndHashTo(to.name()));
@@ -26,7 +26,7 @@ abstract class Markdown extends TemplateBase {
 		return "./" + contract.name() + ".md";
 	}
 
-	String typenameRef(Declaration.Reference from, Declaration.Reference of) {
+	String typenameRef(Reference from, Reference of) {
 		return (!of.module().equals(from.module()) ? of.module() + "." : "")
 			+ of.name();
 	}

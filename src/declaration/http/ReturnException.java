@@ -4,8 +4,6 @@ import io.immutables.meta.Null;
 import io.immutables.meta.SkippableReturn;
 import static java.util.Objects.requireNonNull;
 
-// TODO checked exception equivalent ?
-// TODO (setStatusCode, setStatusText) vs setStatusText
 public abstract class ReturnException extends RuntimeException {
 	private Object body = this;
 	private int statusCode = 0;
@@ -21,8 +19,10 @@ public abstract class ReturnException extends RuntimeException {
 	@SkippableReturn
 	public ReturnException initStatus(int code, String text) {
 		if (statusCode != 0) throw new IllegalStateException("Status code already initialized");
-		setStatusCode(code);
-		setStatusText(text);
+		if (code <= 0) throw new IllegalArgumentException(
+			"Status must be positive int, was: " + code);
+		this.statusCode = code;
+		this.statusText = requireNonNull(text);
 		return this;
 	}
 
@@ -30,15 +30,9 @@ public abstract class ReturnException extends RuntimeException {
 		return body != this;
 	}
 
-	public Object getBody() {
+	Object getBody() {
 		if (body == this) throw new IllegalStateException("Body is not initialized");
 		return body;
-	}
-
-	public void setStatusCode(int statusCode) {
-		if (statusCode <= 0) throw new IllegalArgumentException(
-			"Status must be positive int, was: " + statusCode);
-		this.statusCode = statusCode;
 	}
 
 	public int getStatusCode() {
@@ -51,10 +45,6 @@ public abstract class ReturnException extends RuntimeException {
 	private int inferStatusCode() {
 		@Null var annotation = getClass().getAnnotation(Status.class);
 		return annotation != null ? annotation.value() : 0;
-	}
-
-	public void setStatusText(String statusText) {
-		this.statusText = requireNonNull(statusText);
 	}
 
 	public String getStatusText() {

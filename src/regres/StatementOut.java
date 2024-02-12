@@ -6,16 +6,12 @@ import io.immutables.meta.Null;
 import java.io.IOException;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
-import java.sql.Timestamp;
-import java.time.Instant;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import static java.util.Objects.requireNonNull;
 
 public final class StatementOut extends Out {
-	private static final Object MASKED_NULL = new Object();
-
 	private enum SpreadState {
 		Expect, Doing, None
 	}
@@ -128,6 +124,7 @@ public final class StatementOut extends Out {
 		values.put(parameter, String.valueOf(chars, offset, length));
 	}
 
+	@Override
 	public void putString(NameIndex names, int index) throws IOException {
 		values.put(parameter, names.name(index));
 	}
@@ -158,4 +155,6 @@ public final class StatementOut extends Out {
 			i++;
 		}
 	}
+
+	private static final Object MASKED_NULL = new Object();
 }

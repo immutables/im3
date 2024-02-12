@@ -43,21 +43,25 @@ public interface SqlAccessor {
 	@Target(ElementType.METHOD)
 	@interface Column {
 		/**
-		 * Column name (column label in result set) to extract. When not empty, this takes precedence
+		 * Column name (column label in result set) to extract. When not empty, this takes
+		 * precedence
 		 * over {@link #index()}, which defaults to the first (0) column. This should match
 		 * the expected DB column naming format, regardless of any object-field naming conventions.
 		 */
 		String value() default "";
 		/**
-		 * Column index to extract. Zero-based, not one-based. By default, it is the first column (0).
+		 * Column index to extract. Zero-based, not one-based. By default, it is the first column
+		 * (0).
 		 */
 		int index() default 0;
 	}
 
 	/**
-	 * Mark parameter to be used for batching. Other parameters will be reused for each batch entry,
+	 * Mark parameter to be used for batching. Other parameters will be reused for each batch
+	 * entry,
 	 * but this one will be iterated. The parameter should be an {@link Iterable} or an array.
-	 * The presence of this parameter will enable batch execution mode. Result sets are not supported
+	 * The presence of this parameter will enable batch execution mode. Result sets are not
+	 * supported
 	 * for batch scripts, only update counts are processed.
 	 */
 	@Retention(RetentionPolicy.RUNTIME)
@@ -65,9 +69,9 @@ public interface SqlAccessor {
 	@interface Batch {}
 
 	/**
-	 * This can be used to specify parameter name. Under better circumstances those could be returned
-	 * by reflection, but this requires code to be compiled with '-parameters' flag for Javac.
-	 * Otherwise, all params would have synthetic names like 'arg0', 'arg1' etc.
+	 * This can be used to specify parameter name. Under better circumstances those could be
+	 * returned by reflection, but this requires code to be compiled with '-parameters' flag
+	 * for Javac. Otherwise, all params would have synthetic names like 'arg0', 'arg1' etc.
 	 * At this point it is prohibited to not have parameters named via this annotation
 	 * (unless it is Spread)
 	 */
@@ -78,8 +82,8 @@ public interface SqlAccessor {
 	}
 
 	/**
-	 * This parameter object will be spread as if it was marshaled to the attributes, and those individual
-	 * attributes will fill placeholders in SQL template.
+	 * This parameter object will be spread as if it was marshaled to the attributes,
+	 * and those individual attributes will fill placeholders in SQL template.
 	 */
 	@Retention(RetentionPolicy.RUNTIME)
 	@Target(ElementType.PARAMETER)

@@ -1,6 +1,6 @@
 package dev.declaration.processor;
 
-import dev.declaration.ServiceInventory;
+import dev.declaration.module.Domain;
 import io.immutables.meta.Late;
 import io.immutables.meta.Null;
 import io.immutables.stencil.Current;
@@ -8,7 +8,6 @@ import io.immutables.stencil.Directory;
 import io.immutables.stencil.template.ProcessingCurrent;
 import java.io.PrintWriter;
 import java.io.StringWriter;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.*;
 import javax.annotation.processing.AbstractProcessor;
@@ -81,7 +80,7 @@ public class Processor extends AbstractProcessor {
 
 	@Override
 	public Set<String> getSupportedAnnotationTypes() {
-		return Set.of(ServiceInventory.class.getName());
+		return Set.of(Domain.class.getName());
 	}
 
 	@Override
@@ -92,7 +91,7 @@ public class Processor extends AbstractProcessor {
 	/**
 	 * Process declaration package, generate some artifacts etc.
 	 */
-	private void process(Declaration.Module module) {
+	private void process(Module module) {
 		mvcs.generate(module);
 
 		if (apis != null) apis.generate(module);
@@ -114,7 +113,7 @@ public class Processor extends AbstractProcessor {
 		}
 
 		try {
-			var inventoryPackages = round.getElementsAnnotatedWith(ServiceInventory.class);
+			var inventoryPackages = round.getElementsAnnotatedWith(Domain.class);
 			for (var p : inventoryPackages) {
 				var module = discoverer.discover((PackageElement) p);
 				declarationsByPackage.put(module.name(), module.declarations());

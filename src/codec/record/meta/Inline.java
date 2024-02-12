@@ -1,4 +1,4 @@
-package io.immutables.meta;
+package io.immutables.codec.record.meta;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;

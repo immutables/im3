@@ -1,31 +1,38 @@
 package io.immutables.codec.record;
 
-import io.immutables.meta.Default;
-import io.immutables.meta.Inline;
+import io.immutables.codec.record.meta.Default;
+import io.immutables.codec.record.meta.Inline;
+import io.immutables.codec.record.meta.Opt;
+import io.immutables.codec.record.meta.Tagged;
 import io.immutables.meta.Null;
 import java.lang.reflect.Field;
 import java.lang.reflect.Member;
 import java.lang.reflect.RecordComponent;
 
 public class DefaultMetadataProvider implements MetadataProvider {
-	@Override public int priority() {
+	@Override
+	public int priority() {
 		return Integer.MIN_VALUE;
 	}
 
-	@Override public boolean isInlineRecord(Class<?> record) {
+	@Override
+	public boolean isInlineRecord(Class<?> record) {
 		return record.isRecord() && record.isAnnotationPresent(Inline.class);
 	}
 
-	@Override public boolean isInlineComponent(RecordComponent component) {
+	@Override
+	public boolean isInlineComponent(RecordComponent component) {
 		return component.isAnnotationPresent(Inline.class);
 	}
 
-	@Override public boolean isNullableComponent(RecordComponent component) {
-		return component.isAnnotationPresent(Null.class);
+	@Override
+	public boolean isNullableComponent(RecordComponent component) {
+		return component.isAnnotationPresent(Null.class)
+			|| component.isAnnotationPresent(Opt.class);
 	}
 
-	// TODO big? bad metadata reporter ? or just logging
-	@Override public @Null CaseTag findCaseTag(Class<?> record, @Null Class<?> sealed) {
+	@Override
+	public @Null CaseTag findCaseTag(Class<?> record, @Null Class<?> sealed) {
 		if (record.isRecord() && (sealed == null || sealed.isSealed())) {
 			@Null Tagged taggedOnRecord = record.getAnnotation(Tagged.class);
 			@Null Tagged taggedOnSealed = null;
@@ -80,11 +87,11 @@ public class DefaultMetadataProvider implements MetadataProvider {
 	private @Null Class<?> getUnambiguousSealed(Class<?> record, @Null Class<?> sealed) {
 		if (sealed != null) return sealed;
 		// this routine doesn't consider intermediate/superinterfaces
-		// just directly implemented interfaces,
-		// it's unclear if that ever will need that.
+		// just directly implemented interfaces, for now
 		for (var implemented : record.getInterfaces()) {
 			if (implemented.isSealed()) {
-				// not a single ambiguous, return null
+				// instead of failing on ambiguous types, we will
+				// silently skip those
 				if (sealed != null) return null;
 				sealed = implemented;
 			}
@@ -92,7 +99,8 @@ public class DefaultMetadataProvider implements MetadataProvider {
 		return sealed;
 	}
 
-	@Override public @Null Member findReflectiveDefault(Class<?> type) {
+	@Override
+	public @Null Member findReflectiveDefault(Class<?> type) {
 		return null;
 	}
 

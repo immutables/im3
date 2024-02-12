@@ -44,7 +44,9 @@ final class RecordCodec<T> extends CaseCodec<T, In, Out> implements Expecting {
 
 			componentTypes[i] = componentType;
 			//componentRawTypes[i] = c.getType();
-			componentAccessors[i] = c.getAccessor();
+			var accessor = c.getAccessor();
+			accessor.trySetAccessible();
+			componentAccessors[i] = accessor;
 
 			var codec = lookup.get(componentType);
 			if (Providers.metadata().isNullableComponent(c)) {
@@ -54,6 +56,7 @@ final class RecordCodec<T> extends CaseCodec<T, In, Out> implements Expecting {
 		}
 
 		canonicalConstructor = Reflect.getCanonicalConstructor(raw);
+		canonicalConstructor.trySetAccessible();
 	}
 
 	@Override public boolean mayConform(In in) throws IOException {

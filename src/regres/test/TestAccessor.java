@@ -1,65 +1,18 @@
 package io.immutables.regres.test;
 
-import com.fasterxml.jackson.core.JsonFactoryBuilder;
 import io.immutables.codec.Jsons;
-import io.immutables.codec.Medium;
-import io.immutables.codec.Registry;
-import io.immutables.codec.jackson.EmbeddedJson;
-import io.immutables.codec.record.RecordsFactory;
-import io.immutables.regres.ConnectionProvider;
-import io.immutables.regres.JdbcCodecs;
-import io.immutables.regres.JdbcMedium;
 import io.immutables.regres.Regresql;
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
-import org.junit.Test;
-
-import java.sql.Connection;
-import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.time.Instant;
-import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
-import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.atomic.AtomicReference;
-
+import org.junit.Test;
 import static io.immutables.that.Assert.that;
 
-public class TestRegresql {
-	private static final Registry registry = new Registry.Builder()
-			.add(new RecordsFactory())
-			.add(JdbcCodecs.Instance, JdbcMedium.Jdbc)
-			.add(EmbeddedJson.using(new JsonFactoryBuilder()
-					.build()), Medium.Any, Jsons.class)
-			.build();
-
-	// Connection pool would do the same better I guess :)
-	private static final AtomicReference<Connection> connection = new AtomicReference<>();
-	private static final Sample sample = Regresql.create(
-			Sample.class, registry, new ConnectionProvider() {
-				@Override
-				public Connection get() {
-					return connection.getAcquire();
-				}
-
-				@Override
-				public void recycle(Connection c) {
-					connection.setRelease(c);
-				}
-			});
-
-	@BeforeClass
-	public static void openConnection() throws SQLException {
-		connection.set(DriverManager.getConnection("jdbc:postgresql://localhost:5432/postgres"));
-	}
-
-	@AfterClass
-	public static void closeConnection() throws SQLException {
-		connection.get().close();
-	}
+public class TestAccessor extends Base {
+	private static final Sample sample = Regresql.create(Sample.class, codecs, connections);
 
 	@Test
 	public void results() throws Exception {

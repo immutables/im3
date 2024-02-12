@@ -1,4 +1,4 @@
-package dev.declaration;
+package dev.declaration.module;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Target;

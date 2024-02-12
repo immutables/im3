@@ -11,4 +11,15 @@ package dev.declaration.http;
  * enforced at compile time (since Exceptions cannot have generic parameters).
  * @param <T> Should be specific type that can be marshalled from HTTP response.
  */
-public interface Returns<T> {}
+public interface Returns<T> {
+	/**
+	 *
+	 * @return
+	 */
+	// relies on the implementation to properly instantiate instances of type T.
+	// Exception types which should implement Returns will have to fully specify
+	// this type and codecs will take care of deserializing type T having full specific
+	// type descriptor at runtime.
+	@SuppressWarnings("unchecked")
+	default T get() { return (T) ((ReturnException) this).getBody(); }
+}

@@ -1,4 +1,4 @@
-package io.immutables.codec.record;
+package io.immutables.codec.record.meta;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
@@ -21,5 +21,5 @@ public @interface Tagged {
 	String value() default AUTO;
 
 	String AUTO = "\0*\0";
-	String AUTO_FIELD = "$case";
+	String AUTO_FIELD = "@case";
 }

@@ -12,27 +12,27 @@ import java.sql.SQLException;
  * we don't even provide factories for these.
  */
 public interface ConnectionProvider {
-  /**
-   * Acquire new or pooled connection. Call {@link #recycle(Connection)} to close/or
-   * release it to the pool when done. Do not call {@link Connection#close()} directly.
-   */
-  Connection get() throws SQLException;
-  /**
-   * Recycles the connection: either close it or release to a pool.
-   * By using recycle method we don't force implementors to create connection wrappers which
-   * suppress close and override it to release a connection or do any tear down action.
-   * By default, we just call {@link Connection#close()}.
-   */
-  default void recycle(Connection c) throws SQLException {
-    c.close();
-  }
+	/**
+	 * Acquire new or pooled connection. Call {@link #recycle(Connection)} to close/or
+	 * release it to the pool when done. Do not call {@link Connection#close()} directly.
+	 */
+	Connection get() throws SQLException;
+	/**
+	 * Recycles the connection: either close it or release to a pool.
+	 * By using recycle method we don't force implementors to create connection wrappers which
+	 * suppress close and override it to release a connection or do any tear down action.
+	 * By default, we just call {@link Connection#close()}.
+	 */
+	default void recycle(Connection c) throws SQLException {
+		c.close();
+	}
 
-  /**
-   * {@link AutoCloseable} thread-local connection handle for using with ARM-blocks.
-   */
-  default Handle handle() throws SQLException {
-    return ConnectionHandle.get(this);
-  }
+	/**
+	 * {@link AutoCloseable} thread-local connection handle for using with ARM-blocks.
+	 */
+	default Handle handle() throws SQLException {
+		return ConnectionHandle.get(this);
+	}
 
 	interface Handle extends AutoCloseable {
 		/** Current open connection. */

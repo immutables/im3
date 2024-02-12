@@ -1,6 +1,5 @@
 package dev.declaration.processor;
 
-import io.immutables.meta.Inline;
 import io.immutables.meta.Null;
 import java.net.URI;
 import java.time.*;
@@ -57,7 +56,7 @@ class DatatypeIntrospector {
 		containerTypes.put(Set.class.getName(), Type.Container.Kind.Set);
 	}
 
-	record ReferenceInContext(Declaration.Reference reference, Element inContext) {}
+	record ReferenceInContext(Reference reference, Element inContext) {}
 
 	private final List<ReferenceInContext> toValidate = new ArrayList<>();
 
@@ -135,7 +134,7 @@ class DatatypeIntrospector {
 
 	private void matchTypeVariables(
 		TypeElement element,
-		Declaration.Reference sealed,
+		Reference sealed,
 		List<Declaration.Datatype> cases,
 		Map<String, Type.Variable> variables) {
 
@@ -169,7 +168,7 @@ class DatatypeIntrospector {
 		return show(declaration.reference());
 	}
 
-	private static String show(Declaration.Reference r) {
+	private static String show(Reference r) {
 		return r.module() + ":" + r.name();
 	}
 
@@ -429,15 +428,15 @@ class DatatypeIntrospector {
 			return wrapByAnnotations(terminalType, elementAnnotations, typeUseAnnotations);
 		}
 
-		private Declaration.Reference reference(TypeElement typeElement) {
+		private Reference reference(TypeElement typeElement) {
 			String module = moduleOf(typeElement);
 			String name = nameOf(typeElement);
-			var reference = new Declaration.Reference(module, name);
+			var reference = new Reference(module, name);
 			enque(reference);
 			return reference;
 		}
 
-		private void enque(Declaration.Reference reference) {
+		private void enque(Reference reference) {
 			// Idea here is that we don't check if referenced type is a correct
 			// datatype (recursively), we just remember it here,
 			// and then, at some point, presumably, when we have
@@ -472,8 +471,8 @@ class DatatypeIntrospector {
 		}
 	}
 
-	Declaration.Reference reference(TypeElement element) {
-		return new Declaration.Reference(moduleOf(element), nameOf(element));
+	Reference reference(TypeElement element) {
+		return new Reference(moduleOf(element), nameOf(element));
 	}
 
 	private String moduleOf(TypeElement element) {

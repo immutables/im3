@@ -9,11 +9,13 @@ import java.io.IOException;
 
 final class ColumnExtractor extends Codec<Object, In, Out> {
 	private final Codec<Object, In, Out> codec;
-	private final SqlAccessor.Column column;
+	private final String columnName;
+	private final int columnIndex;
 
-	ColumnExtractor(Codec<Object, In, Out> codec, SqlAccessor.Column column) {
+	ColumnExtractor(Codec<Object, In, Out> codec, String columnName, int columnIndex) {
 		this.codec = codec;
-		this.column = column;
+		this.columnName = columnName;
+		this.columnIndex = columnIndex;
 	}
 
 	@Override
@@ -21,8 +23,6 @@ final class ColumnExtractor extends Codec<Object, In, Out> {
 		@Null Object columnValue = null;
 		boolean matched = false;
 		boolean failed = false;
-		String columnName = column.value();
-		int columnIndex = column.index();
 
 		in.beginStruct(NameIndex.unknown());
 
@@ -54,7 +54,8 @@ final class ColumnExtractor extends Codec<Object, In, Out> {
 		}
 		in.endStruct();
 
-		if (!matched) throw new IOException("No column matched for " + column);
+		if (!matched) throw new IOException(
+			"No column matched for " + columnName + "@" + columnIndex);
 
 		// FIXME how to best integrate with problem reporting?
 		if (failed) throw new IOException("Decoding column failed: " + in.name());

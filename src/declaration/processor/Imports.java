@@ -54,7 +54,7 @@ class Imports {
 		}
 	}
 
-	static void traverseReferences(Type type, Consumer<Declaration.Reference> consumer) {
+	static void traverseReferences(Type type, Consumer<Reference> consumer) {
 		if (type instanceof Type.Terminal t) {
 			consumer.accept(t.terminal());
 		} else if (type instanceof Type.Applied a) {

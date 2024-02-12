@@ -57,19 +57,19 @@ public final class Substitutions {
 	}
 
 	public interface SyntheticReferenceGenerator {
-		Declaration.Reference forApplied(Declaration.Reference reference, List<Type> arguments);
+		Reference forApplied(Reference reference, List<Type> arguments);
 	}
 
 	public static Function<Type, Type> specialization(
 			SyntheticReferenceGenerator referenceGenerator,
-			Function<Declaration.Reference, Declaration.Datatype> resolver,
-			Map<Declaration.Reference, Declaration.Datatype> syntheticDeclarations) {
+			Function<Reference, Declaration.Datatype> resolver,
+			Map<Reference, Declaration.Datatype> syntheticDeclarations) {
 
 		// Here we pack routines and enjoy access to the method parameters as a capture
 		// to make co-recursive calls easier
 		class Specializer {
 			Declaration.Datatype specialize(
-					Declaration.Reference reference,
+					Reference reference,
 					Declaration.Datatype genericDeclaration,
 					List<Type> arguments) {
 				assert genericDeclaration instanceof Declaration.Parameterizable;

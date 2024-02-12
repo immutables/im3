@@ -1,4 +1,4 @@
-package io.immutables.meta;
+package io.immutables.codec.record.meta;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
@@ -9,9 +9,11 @@ import javax.annotation.meta.TypeQualifierNickname;
 import javax.annotation.meta.When;
 
 /**
- * Nullable annotation with the semantics of {@code @Nonnull(when = When.MAYBE)} using,
- * now discontinued, JSR305 definition.
+ * {@code Opt} annotation marks optional fields which have {@code null} as the
+ * default (absent) value. Equivalent to most "Nullable" annotations (in particular with
+ * semantic of {@code @Nonnull(when = When.MAYBE)} using, now discontinued, JSR305 definition.)
  */
+@Retention(RetentionPolicy.RUNTIME)
 @Nonnull(when = When.MAYBE)
 @TypeQualifierNickname
 @Target({
@@ -22,5 +24,4 @@ import javax.annotation.meta.When;
 	ElementType.METHOD,
 	ElementType.RECORD_COMPONENT,
 })
-@Retention(RetentionPolicy.RUNTIME)
-public @interface Null {}
+public @interface Opt {}

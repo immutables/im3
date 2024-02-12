@@ -3,7 +3,7 @@ package io.immutables.codec.test;
 import io.immutables.codec.*;
 import io.immutables.codec.jackson.JsonParserIn;
 import io.immutables.codec.record.RecordsFactory;
-import io.immutables.meta.Inline;
+import io.immutables.codec.record.meta.Inline;
 import io.immutables.meta.Null;
 import java.io.IOException;
 import java.lang.reflect.Type;
