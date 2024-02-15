@@ -18,6 +18,43 @@ import org.postgresql.util.PSQLState;
 final class Exceptions {
 	private Exceptions() {}
 
+	static String methodLine(MethodProfile profile, ParameterProfile highlightedParameter) {
+		@Null var method = profile.method();
+		if (method == null) return "";
+
+		var b = new StringBuilder("\n> ");
+		//int prefixLength = b.length();
+		b.append(method.getDeclaringClass().getSimpleName());
+		b.append('.').append(method.getName()).append('(');
+		int highlightParameterPosition = 0;// even first parameter position will always be > 0
+		int highlightParameterLength = 0;
+		int parameterIndex = 0;
+		for (var p : profile.parameters()) {
+			if (parameterIndex++ > 0) b.append(", ");
+
+			var parameterString = p.spread()
+				.map(prefix -> prefix + "*")
+				.orElse(p.name());
+
+			if (p == highlightedParameter) {
+				// next param stating position will be at current length
+				// -1 - not counting starting newline
+				highlightParameterPosition = b.length() - 1;
+				highlightParameterLength = parameterString.length();
+			}
+
+			b.append(parameterString);
+		}
+		b.append(')');
+
+		if (highlightParameterPosition > 0) {
+			b.append('\n');
+			for (int i = 0; i < highlightParameterPosition; i++) b.append(' ');
+			for (int i = 0; i < highlightParameterLength; i++) b.append('^');
+		}
+		return b.toString();
+	}
+
 	// During static initialization we determine if postgres driver
 	// is present on the classpath. After that we only use postgres-specific
 	// types only inside methods (never in signatures, or our whole class will
@@ -52,7 +89,7 @@ final class Exceptions {
 		@Null SqlSource source,
 		@Null Method method,
 		MethodSnippet definition,
-		SQLException originalException) {
+		Exception originalException) {
 
 		if (source == null
 			|| !postgresDriverPresent
@@ -62,8 +99,9 @@ final class Exceptions {
 				return originalException;
 			}
 
-			var refined = new SqlException(
-				originalException.getMessage(), originalException);
+			var refined = originalException instanceof RuntimeException
+				? originalException
+				: new SqlException(originalException.getMessage(), originalException);
 
 			if (method != null) {
 				refined.setStackTrace(trimStackTrace(refined.getStackTrace(), method));
@@ -74,7 +112,7 @@ final class Exceptions {
 		try {
 			var postgresException = ((PSQLException) originalException);
 			@Null var detailedServerError = postgresException.getServerErrorMessage();
-			if (detailedServerError == null) return originalException;
+			if (detailedServerError == null) return postgresException;
 			// correction for 1-based position, which can be 0 if unknown
 			int position = Math.max(0, detailedServerError.getPosition() - 1);
 
@@ -97,16 +135,16 @@ final class Exceptions {
 				// if declared to throw SQL exception we're reconstructing
 				// refined exception from the refined parts of the original
 				var refined = new SQLException(
-					newMessage, state, originalException.getErrorCode());
+					newMessage, state, postgresException.getErrorCode());
 				// retain any next refined whatever it might be
-				@Null SQLException nextException = originalException.getNextException();
+				@Null SQLException nextException = postgresException.getNextException();
 				if (nextException != null) {
 					refined.setNextException(nextException);
 				}
 				refined.setStackTrace(trimStackTrace(refined.getStackTrace(), method));
 				return refined;
 			} else {
-				var refined = new SqlException(newMessage, originalException);
+				var refined = new SqlException(newMessage, postgresException);
 				if (method != null) {
 					refined.setStackTrace(trimStackTrace(refined.getStackTrace(), method));
 				}
@@ -197,8 +235,7 @@ final class Exceptions {
 		return chunk.equals(quotedExcerpt);
 	}
 
-	private static StackTraceElement[] trimStackTrace(
-		StackTraceElement[] originalStack, Method method) {
+	static StackTraceElement[] trimStackTrace(StackTraceElement[] originalStack, Method method) {
 		return Vect.of(originalStack)
 			.dropWhile(s -> !s.getClassName().contains(".$Proxy"))
 			.rangeFrom(1)

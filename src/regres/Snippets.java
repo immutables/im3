@@ -2,6 +2,7 @@ package io.immutables.regres;
 
 import io.immutables.common.Source;
 import io.immutables.meta.Null;
+import io.immutables.regres.MethodSnippet.Placeholder;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -28,7 +29,9 @@ class Snippets {
 		return "/" + resourceFilename + ".sql";
 	}
 
-	static Map<String, List<MethodSnippet>> parse(CharSequence content, Source.Lines lines) {
+	static Map<String, List<MethodSnippet>> parse(SqlSource source) {
+		var content = source.content();
+		var lines = source.lines();
 		var allMethods = new HashMap<String, List<MethodSnippet>>();
 
 		class Parser {
@@ -78,10 +81,13 @@ class Snippets {
 			}
 
 			void openMethod(String name, Source.Range range) {
+				var builder = new MethodSnippet.Builder();
+				builder.name = name;
+				builder.source = source;
+				builder.identifierRange = range;
+
 				openRange = null;
-				openBuilder = new MethodSnippet.Builder();
-				openBuilder.identifierRange = range;
-				openBuilder.name = name;
+				openBuilder = builder;
 			}
 
 			void flushMethod(CharSequence content, Source.Range currentRange) {
@@ -113,13 +119,13 @@ class Snippets {
 				assert openBuilder != null;
 				assert openRange != null;
 				openBuilder.statementsRange = openRange;
+				int beginAt = openRange.begin.position;
+				int endsAt = openRange.end.position;
 
-				var source = content.subSequence(
-					openRange.begin.position,
-					openRange.end.position);
+				var source = content.subSequence(beginAt, endsAt);
 
 				openBuilder.statements =
-					extractStatements(source, openBuilder.placeholders::add);
+					extractStatements(source, beginAt, lines, openBuilder.placeholders::add);
 			}
 		}
 
@@ -130,7 +136,9 @@ class Snippets {
 
 	static String extractStatements(
 		CharSequence source,
-		Consumer<String> placeholders) {
+		int sourceOffset,
+		Source.Lines sourceLines,
+		Consumer<Placeholder> placeholders) {
 
 		var buffer = new StringBuilder();
 		var matcher = IdentifierPatterns.PLACEHOLDER_OR_COERCION.matcher(source);
@@ -145,7 +153,12 @@ class Snippets {
 				matcher.appendReplacement(buffer, "$0");
 			} else {
 				var placeholder = matcher.group(1);
-				placeholders.accept(placeholder);
+				placeholders.accept(
+					new Placeholder(placeholder,
+						Source.Range.of(
+							sourceLines.get(sourceOffset + matcher.start(0)),
+							sourceLines.get(sourceOffset + matcher.end(0))
+						)));
 				matcher.appendReplacement(buffer, "?");
 				// append number of spaces to match the length of original
 				// placeholder so SQL syntax error reporting would operate

@@ -5,11 +5,13 @@ import io.immutables.codec.In;
 import io.immutables.codec.NameIndex;
 import io.immutables.codec.Out;
 import io.immutables.meta.Null;
+import java.lang.reflect.Method;
 import java.lang.reflect.Type;
 import java.util.*;
 import static java.util.Objects.requireNonNull;
 
 record MethodProfile(
+	@Null Method method,
 	String name,
 	OptionalInt batchParameter,
 	boolean returnsUpdateCount,
@@ -26,6 +28,7 @@ record MethodProfile(
 	}
 
 	static class Builder {
+		@Null Method method;
 		@Null String name;
 		int batchParameter = ABSENT;
 		boolean returnUpdateCount;
@@ -38,6 +41,7 @@ record MethodProfile(
 
 		MethodProfile build() {
 			return new MethodProfile(
+				method,
 				requireNonNull(name),
 				batchParameter == ABSENT
 					? OptionalInt.empty()

@@ -43,10 +43,16 @@ public final class Regresql {
 					.formatted(accessor, SqlAccessor.class));
 		}
 
-		return (T) Proxy.newProxyInstance(
-			accessor.getClassLoader(),
-			new Class<?>[]{accessor},
-			handlerFor(accessor, codecs, connections));
+		try {
+			return (T) Proxy.newProxyInstance(
+				accessor.getClassLoader(),
+				new Class<?>[]{accessor},
+				handlerFor(accessor, codecs, connections));
+		} catch (WrongDeclaration wrongDeclaration) {
+			// effectively removing irrelevant deeper stack trace,
+			// relying on that diagnostics in WrongDeclaration message is good enough
+			throw new WrongDeclaration(wrongDeclaration.getMessage());
+		}
 	}
 
 	public static SqlFactory factory(Codec.Resolver codecs, ConnectionProvider connections) {
@@ -60,15 +66,11 @@ public final class Regresql {
 			}
 
 			@Override public <T> T transaction(Supplier<T> inTransaction) {
-				return inTransaction(this::handle, false, false, inTransaction);
-			}
-
-			@Override public <T> T inNewTransaction(Supplier<T> inTransaction) {
-				return inTransaction(this::handle, false, true, inTransaction);
+				return inTransaction(this::handle, false, inTransaction);
 			}
 
 			@Override public <T> T readonly(Supplier<T> inTransaction) {
-				return inTransaction(this::handle, true, false, inTransaction);
+				return inTransaction(this::handle, true, inTransaction);
 			}
 		};
 	}
@@ -78,8 +80,8 @@ public final class Regresql {
 	}
 
 	private static <T> T inTransaction(GetHandle handler,
-		boolean readonly, boolean requireNew, Supplier<T> inTransaction) {
-		List<SQLException> suppressed = new ArrayList<>(0);
+		boolean readonly, Supplier<T> inTransaction) {
+		var suppressed = new ArrayList<Throwable>(0);
 
 		try (var handle = handler.handle()) {
 			var c = handle.connection();
@@ -89,12 +91,14 @@ public final class Regresql {
 			if (wasAutoCommits) c.setAutoCommit(false);
 			try {
 				var result = inTransaction.get();
-				if (wasAutoCommits || requireNew) {
+				if (wasAutoCommits) {
 					c.commit();
 				}
 				return result;
+				// Supplier<T> limits to RuntimeExceptions
+				// and we allow things to be left alone on Errors: no explicit rollback
 			} catch (RuntimeException e) {
-				if (wasAutoCommits || requireNew) {
+				if (wasAutoCommits) {
 					c.rollback();
 				}
 				throw e;
@@ -143,6 +147,7 @@ public final class Regresql {
 		@Null Single single = method.getAnnotation(Single.class);
 
 		var builder = new MethodProfile.Builder();
+		builder.method = method;
 		builder.name = methodName(method);
 		builder.extractColumn = column != null;
 		Type returnType = method.getGenericReturnType();
@@ -237,8 +242,8 @@ public final class Regresql {
 			if (spreadAnnotation == null && namedAnnotation == null && !hasName) {
 				throw new WrongDeclaration(
 					"Parameter #" + i + " of "
-						+ m.getDeclaringClass() + "." + methodName(m)
-						+ " must have @Named annotation");
+						+ m.getDeclaringClass().getCanonicalName() + "." + methodName(m)
+						+ " must have @Named annotation. Can also consider using compiler flag -parameters");
 			}
 
 			Type type = types[i];
@@ -275,7 +280,7 @@ public final class Regresql {
 				} else if (parameter.isNamePresent()) {
 					name = parameter.getName();
 				} else if (spreadWith.isPresent()) {
-					name = "<unspecified-" + i + ">";
+					name = "<unnamed-" + i + ">";
 				} else {
 					throw new WrongDeclaration(
 						"Parameter #" + i + " should have @Named annotation to provide a name"
@@ -348,15 +353,16 @@ public final class Regresql {
 			var handle = provider.handle();
 			var statement = handle.connection().prepareStatement(snippet.statements())) {
 
-			prepareStatement(statement, profile, snippet, arguments);
-
 			@Null Object result;
-
 			try {
+				prepareStatement(statement, profile, snippet, arguments);
+
 				result = executeStatement(statement, profile);
-			} catch (SQLException exception) {
+			} catch (SqlException | WrongDeclaration | IOException | SQLException exception) {
 				throw Exceptions.refineException(source, method, snippet, exception);
 			}
+			// let unexpected runtime exception to fly freely with the full stacktrace,
+			// so we can identify and fix them more easily
 
 			if (profile.returnType() == void.class) {
 				// for the case where update count is to be ignored (void method)
@@ -383,7 +389,7 @@ public final class Regresql {
 		Object[] args) throws SQLException, IOException {
 
 		var parameters = profile.parameters();
-		var out = new StatementOut(profile.parameterIndex());
+		var out = new StatementOut(profile, profile.parameterIndex());
 
 		if (profile.batchParameter().isPresent()) {
 			int batchIndex = profile.batchParameter().getAsInt();
@@ -397,7 +403,7 @@ public final class Regresql {
 			if (batch instanceof Iterable<?>) {
 				for (Object o : (Iterable<?>) batch) {
 					putArgument(out, batcher, batchIndex, o);
-					out.fillStatement(statement, snippet.placeholders());
+					out.fillStatement(statement, snippet);
 					statement.addBatch();
 				}
 			} else if (batch.getClass().isArray()) {
@@ -405,7 +411,7 @@ public final class Regresql {
 				for (int i = 0; i < length; i++) {
 					Object value = Array.get(batch, i);
 					putArgument(out, batcher, batchIndex, value);
-					out.fillStatement(statement, snippet.placeholders());
+					out.fillStatement(statement, snippet);
 					statement.addBatch();
 				}
 			} else throw new WrongDeclaration(
@@ -414,12 +420,13 @@ public final class Regresql {
 			for (int i = 0; i < parameters.size(); i++) {
 				putArgument(out, parameters.get(i), i, args[i]);
 			}
-			out.fillStatement(statement, snippet.placeholders());
+			out.fillStatement(statement, snippet);
 		}
 	}
 
 	private static void putArgument(StatementOut out, ParameterProfile p, int index, Object value)
 		throws IOException {
+		out.parameter(p);
 		out.putField(index);
 		if (p.spread().isPresent()) {
 			out.spread(p.spread().get());
@@ -462,9 +469,10 @@ public final class Regresql {
 		return new SqlSource(filename, content, Source.Lines.from(content));
 	}
 
-	private static Map<String, MethodSnippet> parseSnippets(SqlSource source,
+	private static Map<String, MethodSnippet> parseSnippets(
+		SqlSource source,
 		Set<String> methods) {
-		var snippets = Snippets.parse(source.content(), source.lines());
+		var snippets = Snippets.parse(source);
 
 		var problems = new ArrayList<Source.Problem>();
 		var unique = new HashMap<String, MethodSnippet>();

@@ -96,4 +96,15 @@ public class TestAccessor extends Base {
 		that(ids).notEmpty();
 		var types = sample.readFancyTypes();
 	}
+
+	@Test public void nested() throws SQLException {
+		sample.createTable();
+		sample.addNested(new Sample.Nested(42, "b"), 1);
+	}
+
+	@Test public void seeOutputProblems() throws SQLException {
+		var a = sample.selectNested();
+		that(a.a()).is(1);
+		that(a.b()).is("B");
+	}
 }

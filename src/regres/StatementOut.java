@@ -2,13 +2,14 @@ package io.immutables.regres;
 
 import io.immutables.codec.NameIndex;
 import io.immutables.codec.Out;
+import io.immutables.meta.Late;
 import io.immutables.meta.Null;
 import java.io.IOException;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
+import static io.immutables.regres.Exceptions.methodLine;
 import static java.util.Objects.requireNonNull;
 
 public final class StatementOut extends Out {
@@ -16,6 +17,7 @@ public final class StatementOut extends Out {
 		Expect, Doing, None
 	}
 
+	private final MethodProfile profile;
 	private final NameIndex parameterIndex;
 	private final Map<String, Object> values = new HashMap<>();
 
@@ -24,13 +26,20 @@ public final class StatementOut extends Out {
 	private String parameter = "";
 	private @Null NameIndex spreadingIndex;
 
-	StatementOut(NameIndex parameterIndex) {
+	StatementOut(MethodProfile profile, NameIndex parameterIndex) {
+		this.profile = profile;
 		this.parameterIndex = parameterIndex;
 	}
 
 	private record TypedValue(int sqlType, @Null Object value) {}
 
-	public void spread(String prefix) {
+	private @Late ParameterProfile parameterProfile;
+
+	void parameter(ParameterProfile p) {
+		parameterProfile = p;
+	}
+
+	void spread(String prefix) {
 		spreading = SpreadState.Expect;
 		this.prefix = prefix;
 	}
@@ -41,8 +50,7 @@ public final class StatementOut extends Out {
 			spreading = SpreadState.Doing;
 			spreadingIndex = f;
 		} else {
-			unexpected("Parameter at %s uses nested structure. Instead use @Spread or JSON conversion"
-				.formatted(path()));
+			onlyScalarAllowed();
 		}
 	}
 
@@ -58,7 +66,8 @@ public final class StatementOut extends Out {
 
 	@Override
 	public void putField(int field) {
-		var names = spreading == SpreadState.Doing ? requireNonNull(spreadingIndex) : parameterIndex;
+		var names =
+			spreading == SpreadState.Doing ? requireNonNull(spreadingIndex) : parameterIndex;
 		putField(names.name(field));
 	}
 
@@ -77,8 +86,17 @@ public final class StatementOut extends Out {
 
 	@Override
 	public void beginArray() throws IOException {
-		unexpected("Parameter at %s uses nested array. Use special conversion or JSON instead"
-			.formatted(path()));
+		onlyScalarAllowed();
+	}
+
+	private void onlyScalarAllowed() throws IOException {
+		var what = spreading == SpreadState.None ? "Parameter" : "Field";
+		var suggestion = spreading == SpreadState.None
+			? "Use @Spread to fields, Jsons<T> or explicit conversion (toString() etc)"
+			: "Use a string, a number, Jsons<T> or any type convertible to scalar";
+
+		unexpected("%s `%s` cannot be converted to a scalar. %s%s"
+			.formatted(what, parameter, suggestion, methodLine(profile, parameterProfile)));
 	}
 
 	@Override
@@ -134,16 +152,23 @@ public final class StatementOut extends Out {
 	}
 
 	private void unexpected(String message) throws IOException {
-		throw new IOException(message);
+		throw new SqlException(message);
 	}
 
 	void fillStatement(
-			PreparedStatement statement,
-			List<String> placeholders) throws SQLException, IOException {
+		PreparedStatement statement,
+		MethodSnippet snippet) throws SQLException, IOException {
 		int i = 1;
-		for (String name : placeholders) {
-			@Null Object v = values.get(name);
-			if (v == null) unexpected("No value for placeholder :" + name);
+		for (var placeholder : snippet.placeholders()) {
+			@Null Object v = values.get(placeholder.name());
+			if (v == null) {
+				throw new WrongDeclaration("\n" + snippet.source().problemAt(
+					placeholder.range(),
+					"No parameter or value for placeholder :" + placeholder.name(),
+					"Add parameter with such name or @Spread parameter having such " +
+						"field/component\nAvailable parameters: " + String.join(", ",
+						values.keySet())));
+			}
 			if (v == MASKED_NULL) {
 				// do we need setNull with specific JDBC type?
 				statement.setObject(i, null);

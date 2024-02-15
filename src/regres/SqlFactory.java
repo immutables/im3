@@ -27,8 +27,6 @@ public interface SqlFactory {
 
 	<T> T readonly(Supplier<T> inTransaction);
 
-	<T> T inNewTransaction(Supplier<T> inTransaction);
-
 	default void transaction(Runnable inTransaction) {
 		transaction(() -> {
 			inTransaction.run();
@@ -254,13 +252,13 @@ public interface SqlFactory {
 			var methodName = "";
 			var lines = Source.Lines.from(buffer);
 			var source = new SqlSource(filename, buffer, lines);
-			var placeholders = new ArrayList<String>();
-			var statements = Snippets.extractStatements(buffer, placeholders::add);
+			var placeholders = new ArrayList<MethodSnippet.Placeholder>();
+			var statements = Snippets.extractStatements(buffer, 0, lines, placeholders::add);
 			var zeroPosition = lines.get(0);
 			var identifierRange = Source.Range.of(zeroPosition, zeroPosition);
 			var statementsRange = Source.Range.of(zeroPosition, lines.get(buffer.length()));
 			var snippet = new MethodSnippet(
-				methodName, placeholders, identifierRange, statementsRange, statements);
+				methodName, source, placeholders, identifierRange, statementsRange, statements);
 
 			var builder = new MethodProfile.Builder();
 			builder.name = methodName;

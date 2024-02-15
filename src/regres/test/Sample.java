@@ -100,10 +100,21 @@ public interface Sample extends SqlAccessor {
 	@Single
 	FancyTypes readFancyTypes();
 
+	void addNested(@Spread Nested n, @Named("a") int a);//@Named("nested") Nested nested,
+
+	@Single
+	Nested selectNested();
+
 	record FancyTypes(
 			UUID id,
 			OffsetDateTime dt,
 			Instant ts,
 			Jsons<String> jb
+	) {}
+
+	record Nested(
+		int a,
+		String b
+		//Map<String, Integer> c
 	) {}
 }

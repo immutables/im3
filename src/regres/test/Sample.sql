@@ -123,3 +123,11 @@ select id from types;
 --.readFancyTypes
 
 select * from types;
+
+--.addNested
+
+select * from bu where a = :a and b = :b;
+
+--.selectNested
+
+select 1 as a, 'B' as b
