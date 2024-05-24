@@ -22,7 +22,7 @@ public class Release {
 
 		var published = List.of(
 			"meta",
-			"that",
+ 			"that",
 			"common",
 			"codec",
 			"codec.jackson",
