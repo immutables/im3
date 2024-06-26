@@ -4,7 +4,7 @@ module dev.declaration {
 	// requires io.immutables.codec;
 	//requires io.immutables.codec.jackson;
 
-	exports dev.declaration;
+	//exports dev.declaration;
 	exports dev.declaration.http;
 	exports dev.declaration.module;
 }

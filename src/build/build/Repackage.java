@@ -64,9 +64,8 @@ public interface Repackage {
 				}
 			}
 		}
-
-		Files.move(merged, vendored,
-			StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
+    // atomic move might not be supported
+		Files.move(merged, vendored, StandardCopyOption.REPLACE_EXISTING);
 
 		return vendored;
 	}

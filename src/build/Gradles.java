@@ -21,20 +21,20 @@ abstract class Gradles extends Template {
 
 	void copyJava(GenModule module) {
 		files.dir("src/", module.path())
-			.include("**/*.java")
-			.exclude("test/**")
-			.forEach(module.nested(), (f, nested) ->
-				f.exclude(nested.path(), "/**"))
-			.exclude("**/module-info.java")
-			.copyTo("rel/mod/", module.path(), "/src/main/java/io/immutables/",
-				module.path());
+				.include("**/*.java")
+				.exclude("test/**")
+				.forEach(module.nested(), (f, nested) ->
+						f.exclude(nested.path(), "/**"))
+				.exclude("**/module-info.java")
+				.copyTo("rel/mod/", module.path(), "/src/main/java/io/immutables/",
+						module.path());
 
 		@Null var pathToGenerated = pathToGenerated(module);
 		if (pathToGenerated == null) return;
 
 		files.dir(pathToGenerated)
-			.include("**/*.java")
-			.copyTo("rel/mod/", module.path(), "/src/main/java");
+				.include("**/*.java")
+				.copyTo("rel/mod/", module.path(), "/src/main/java");
 	}
 
 	private @Null Path pathToGenerated(GenModule module) {

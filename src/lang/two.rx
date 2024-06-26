@@ -1,0 +1,102 @@
+
+type Abc{x, y f32, is bool}
+
+type Zz impl {
+	kpk(u int) -> Int
+}
+
+cotigoroshko(u, d int) -> Int {
+	yu~ = 1
+	yu := 2
+	yu := 3
+
+	x, y = u, t
+	u, v = z
+	z, o = (u, z)
+
+	s = result() ?? "1"
+
+	roro = 0..<4
+
+	ogogo = [for z, i : 0..<1  a+1]
+
+	xx = abc()?
+	null = ()?
+	scawa = " Sure I like it
+	{ bbb / ccc }
+	"
+
+	upl = "_{ for x : bbz  x + 1 }_"
+	for babules if x == 2 {
+		for a : zest a.x()
+	} else if 2 < x {
+		[1, 2, 3]
+	} else if 3 >= 2 {
+		u = 0b1111_00_00
+	}
+	u := [1, 2, 3]
+	x = Name<T, C<B<X>>>.C(1, 2)
+	y = 4 + 7 || {
+		j: 1 + r / 2,
+		h: "Abc{ j.l.o[x - 1] }",
+	} - <A/> % 1
+	o = arborio(42){a: 22, b: 77}(55)
+	u = 0b1111_00_00
+
+	bobobo = if a + b
+		akustick.buben(a)
+	else
+		goesh.bog
+
+	l += "text-text-text" + (-1) + u.i.ooo(true) / (o := 33)
+	i++
+	--i
+
+//	a = [~]Boolean
+//	a << 1 << 2 << 3 << 3
+//	aa <<= a
+//	a = [a, ..b]
+//	for a : gkk  a <~ b else return 1
+
+	if a == 2 else return 1
+	case aaa {
+		Asd -> aaaa
+	}
+
+	intovka.next(99)
+		.ogo{u: <><emp/></>}
+		.a.b.c()
+
+	<Bonza
+  	x={1}
+  	y={"ab { 313 }z"}>
+  	<>%
+			<not>
+				Xs{ 22.34 }_{ true }U
+			</not>%
+		</>
+	</Bonza>
+}
+
+// NOT PARSABLE NOW
+// abc
+// acba
+// fsdaf adf ds fs sdf s
+type Abc(abc String)
+	:: Type == Abcac
+impl {
+
+	bobicks -> Abc<A, B, C>
+
+	name -> String: 1
+
+	rect -> {
+		:: a / 2
+		:: a * 3 == "aaa"
+	}
+}
+
+concept Num E {
+
+	(E) + (E) -> E
+}

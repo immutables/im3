@@ -1,0 +1,33 @@
+//type Xyz {t Int, a, b, c String}
+
+// ABC
+type Abc (
+	// u y i
+	// h i o
+	a Int
+	b Int
+	c String
+)
+
+// Feature Comment
+// Let it fly
+feat1(x, y Int) -> String {
+	x = 111
+	222
+}
+
+// Kentuky
+// Fried
+// Eggs
+type Kfc {
+	a int // A
+	b int // B
+	c String // C
+}
+
+//type As impl {
+//
+//	render -> <>
+//		a b c de
+//	</>
+//}

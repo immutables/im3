@@ -11,7 +11,7 @@
   static dev.declaration.processor.Declaration.Parameter.Mapping.*
 ]
 
-[generate(Declaration.Module module)]
+[generate(Module module)]
   [let directory]doc/[/let]
 
 [files.path(directory, module.name, "/readme.md").content _]
@@ -40,7 +40,7 @@
 
 [/generate]
 
-[packageSummary(Declaration.Module module)]
+[packageSummary(Module module)]
 # [svg("package", 32)] [module.name] [ver]
 
 [--### _Guides_]
@@ -76,7 +76,7 @@
 <sup><code title="current version [version]">v[version]</code></sup>
 [-<][/ver]
 
-[contractPage(Datatype.Module module, Contract contract)]
+[contractPage(Module module, Contract contract)]
 ### [svg("package", 24)] [module.name] [ver] \[⏎\]([linkTo(contract, module)] "Return to `[module.name]` module overview")
 
 # [svg("contract", 42)] [contract.name]
@@ -160,7 +160,7 @@
   [/if]
 [/contentType]
 
-[datatypePage(Datatype.Module module, String name, Set<Datatype> datatypes)]
+[datatypePage(Module module, String name, Set<Datatype> datatypes)]
 ### [svg("package", 24)] [module.name] \[`⏎`\]([linkTo(datatypes.iterator.next, module)])
 [if datatypes.size > 3]
 | types |
@@ -183,7 +183,7 @@
 [/for]
 [/datatypePage]
 
-[landingPage(Declaration.Module module)]
+[landingPage(Module module)]
 # Landing page
 removed, see history to revert
 [/landingPage]

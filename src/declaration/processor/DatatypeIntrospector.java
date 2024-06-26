@@ -1,6 +1,7 @@
 package dev.declaration.processor;
 
 import io.immutables.meta.Null;
+import io.immutables.codec.record.meta.Inline;
 import java.net.URI;
 import java.time.*;
 import java.util.*;

@@ -1,0 +1,51 @@
+//:import {h} from '/-/preact.js'
+
+type JustIt
+
+type Ghost {
+	a A
+} impl {
+
+	getIt int { 1 }
+
+	bowie{ x, y int } -> {
+		console.log("Bw {x} {y}")
+	}
+
+	feat(a int : 1, c String : "aa") -> () {
+		console.log("J! {a} {c}")
+	}
+}
+
+tagx Abc{ x, y, z int } -> {
+	arb~ : "A"
+	ori~ : 1
+
+	laz = useMemo(() -> "LAZ {x} {y} {z}", [x, y, z])
+
+	<p>
+		<h1 onClick={() -> arb <- "{arb}:{ori}"}>
+			Bento {laz}
+		</h1>
+		<h2 onClick={() -> ori <- ori + 1}>{ arb }</h2>
+		{ for 0..ori <p>Hewwo {ori} { {aa: "1", bb: "3"} }</p> }
+	</p>
+}
+
+tagx MyTag -> <Abc x="a" y="b" z="c" />
+
+// main it is
+main() -> {
+	y~ = 1
+	x = [1, 2, 3, 4].map((a int) -> y := y + a )
+
+	for k, v : Object.entries{ x: 1, y: 2 }
+		console.log("ENTRY {k} = {v}")
+
+	Ghost{a: 1}.bowie{ x: 1, y: 2 }
+
+	console.log("HY {y}!!!: {x == 2}")
+
+	here = document.getElementById("render-here")
+	render(<MyTag/>, here)
+}

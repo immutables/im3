@@ -4,7 +4,7 @@
   static dev.declaration.processor.Declaration.*
 ]
 
-[generate(Declaration.Module module)]
+[generate(Module module)]
   [for d : module.declarations, if d.(Contract c)]
     [sources.inPackage(c.module, ".mvc").name(c.name).java _]
 [contractInterface(c)]

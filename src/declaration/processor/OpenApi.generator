@@ -1,11 +1,12 @@
 [import
   java.util.List
   dev.declaration.processor.Declaration
+  dev.declaration.processor.Module
   static dev.declaration.processor.Declaration.*
   static dev.declaration.processor.Declaration.Parameter.Mapping.*
 ]
 
-[generate(Declaration.Module module)]
+[generate(Module module)]
   [let directory]api/[module.name]/[/let]
   [for declaration : module.declarations, if declaration.(Contract c)]
 [files.path(directory, c.name, ".yaml").content _]

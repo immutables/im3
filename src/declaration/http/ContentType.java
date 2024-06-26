@@ -17,7 +17,7 @@ import java.lang.annotation.*;
 @Target(ElementType.ANNOTATION_TYPE)
 @Documented
 public @interface ContentType {
-	/** Mime content type */
+	/** Media content type string */
 	String value();
 
 	@Retention(RetentionPolicy.RUNTIME)

@@ -28,18 +28,18 @@ public sealed interface AtPath {
 	}
 
 	default List<AtPath> unwind() {
-		var list = new ArrayList<AtPath>();
-		append(list, this);
-		return List.copyOf(list);
+		var sequence = new ArrayList<AtPath>();
+		collectInto(sequence, this);
+		return List.copyOf(sequence);
 	}
 
-	private static void append(List<AtPath> list, AtPath path) {
+	private static void collectInto(List<AtPath> sequence, AtPath path) {
 		if (path instanceof ElementAt e) {
-			append(list, e.path);
+			collectInto(sequence, e.path);
 		} else if (path instanceof FieldOf f) {
-			append(list, f.path);
+			collectInto(sequence, f.path);
 		}
-		list.add(path);
+		sequence.add(path);
 	}
 
 	/** Prints {@link AtPath} to string, roughly, JSON-path notation. */

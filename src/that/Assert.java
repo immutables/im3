@@ -4,7 +4,7 @@ import io.immutables.meta.Null;
 import java.util.Arrays;
 import java.util.stream.Collectors;
 /**
- * {@code Assert.that}: Minimalistic, extensible and attentive to details assertions.
+ * {@code Assert.that}: Minimalistic, extensible and attentive-to-details assertions.
  */
 public final class Assert {
 	private Assert() {}
@@ -46,8 +46,10 @@ public final class Assert {
 	 * @param actual optional object
 	 * @return that optional
 	 */
+	@SuppressWarnings("OptionalUsedAsFieldOrParameterType")
 	public static <T> That.AssertedOptional<T> that(@Null java.util.Optional<T> actual) {
-		class Tested extends That.What<java.util.Optional<T>, That.AssertedOptional<T>> implements That.AssertedOptional<T> {}
+		class Tested extends That.What<java.util.Optional<T>, That.AssertedOptional<T>>
+				implements That.AssertedOptional<T> {}
 		return new Tested().set(actual);
 	}
 
@@ -57,7 +59,8 @@ public final class Assert {
 	 * @return that iterable
 	 */
 	public static <T> That.AssertedIterable<T> that(@Null Iterable<T> actual) {
-		class Tested extends That.What<Iterable<T>, That.AssertedIterable<T>> implements That.AssertedIterable<T> {}
+		class Tested extends That.What<Iterable<T>, That.AssertedIterable<T>>
+				implements That.AssertedIterable<T> {}
 		return new Tested().set(actual);
 	}
 
@@ -67,8 +70,9 @@ public final class Assert {
 	 * @return that iterable
 	 */
 	public static <T> That.AssertedIterable<T> that(@Null java.util.stream.Stream<T> actual) {
-		class Tested extends That.What<Iterable<T>, That.AssertedIterable<T>> implements That.AssertedIterable<T> {}
-		return new Tested().set(actual.collect(Collectors.toList()));
+		class Tested extends That.What<Iterable<T>, That.AssertedIterable<T>>
+				implements That.AssertedIterable<T> {}
+		return new Tested().set(actual == null ? null : actual::iterator);
 	}
 
 	/**
@@ -78,7 +82,8 @@ public final class Assert {
 	 */
 	@SafeVarargs
 	public static <T> That.AssertedIterable<T> that(T... actual) {
-		class Tested extends That.What<Iterable<T>, That.AssertedIterable<T>> implements That.AssertedIterable<T> {}
+		class Tested extends That.What<Iterable<T>, That.AssertedIterable<T>>
+				implements That.AssertedIterable<T> {}
 		return new Tested().set(Arrays.asList(actual));
 	}
 
@@ -87,8 +92,8 @@ public final class Assert {
 	 * @return that iterable
 	 */
 	public static That.AssertedIterable<Integer> that(int[] actual) {
-		class Tested extends That.What<Iterable<Integer>,
-				That.AssertedIterable<Integer>> implements That.AssertedIterable<Integer> {}
+		class Tested extends That.What<Iterable<Integer>, That.AssertedIterable<Integer>>
+				implements That.AssertedIterable<Integer> {}
 		return new Tested().set(Arrays.stream(actual).boxed().toList());
 	}
 
@@ -97,8 +102,8 @@ public final class Assert {
 	 * @return that iterable
 	 */
 	public static That.AssertedIterable<Long> that(long[] actual) {
-		class Tested extends That.What<Iterable<Long>,
-				That.AssertedIterable<Long>> implements That.AssertedIterable<Long> {}
+		class Tested extends That.What<Iterable<Long>, That.AssertedIterable<Long>>
+				implements That.AssertedIterable<Long> {}
 		return new Tested().set(Arrays.stream(actual).boxed().toList());
 	}
 
@@ -107,8 +112,8 @@ public final class Assert {
 	 * @return that iterable
 	 */
 	public static That.AssertedIterable<Double> that(double[] actual) {
-		class Tested extends That.What<Iterable<Double>,
-				That.AssertedIterable<Double>> implements That.AssertedIterable<Double> {}
+		class Tested extends That.What<Iterable<Double>, That.AssertedIterable<Double>>
+				implements That.AssertedIterable<Double> {}
 		return new Tested().set(Arrays.stream(actual).boxed().toList());
 	}
 
@@ -128,6 +133,14 @@ public final class Assert {
 	public static That.AssertedBoolean that(@Null Boolean actual) {
 		class Tested extends That.What<Boolean, That.AssertedBoolean> implements That.AssertedBoolean {}
 		return new Tested().set(actual);
+	}
+
+	/**
+	 * @param actual float value or null
+	 * @return that double
+	 */
+	public static That.AssertedDouble that(@Null Float actual) {
+		return that(actual == null ? null : actual.doubleValue());
 	}
 
 	/**
@@ -171,13 +184,5 @@ public final class Assert {
 	 */
 	public static That.AssertedInt that(@Null Character actual) {
 		return that(actual == null ? null : (int) actual);
-	}
-
-	/**
-	 * @param actual float value or null
-	 * @return that double
-	 */
-	public static That.AssertedDouble that(@Null Float actual) {
-		return that(actual == null ? null : actual.doubleValue());
 	}
 }

@@ -9,7 +9,7 @@
   static dev.declaration.processor.VariantFeature.*
 ]
 
-[generate(Declaration.Module module)]
+[generate(Module module)]
   [let directory]js/[/let]
 
 [files.path(directory, module.name, ".d.ts").content _]
