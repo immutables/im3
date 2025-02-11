@@ -174,7 +174,8 @@ class ExpressionContent {
 	// @@42@@
 	private static final Pattern literalReference = Pattern.compile("@@([0-9]+)@@");
 
-	// matches
+  // TODO improved deconstruction patterns
+  // matches
 	// .(TypeName)
 	// .(A.Bb.Cc val)
 	// this is a second iteration of the syntax, somewhat inspired by Go type assertions

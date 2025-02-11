@@ -1,6 +1,6 @@
 [import
 	java.util.*
-	io.immutables.build.build.*;
+	io.immutables.build.build.*
 ]
 
 [generate(List<GenModule> modules)]

@@ -21,7 +21,7 @@ public class Release {
 		Dependencies.resolve();
 
 		var published = List.of(
-			"meta",
+				"io/immutables/meta",
  			"that",
 			"common",
 			"codec",

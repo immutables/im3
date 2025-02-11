@@ -27,6 +27,7 @@
 # which are not part of the hermetic CI build.
 # Can be present on different levels of nesting
 .build/
+.classes/
 
 # Folder which contains module/repackaged jars
 # Excluded here, but better to be committed for the reproducible build
@@ -42,6 +43,7 @@
 # Auto created when running builds, present only in root
 /.buckd/
 /buck-out/
+out/
 
 # !DEPRECATED? maven not in use
 # Maven output directory in case we run some maven commands
